@@ -11,11 +11,12 @@ if (!isset($_SESSION['restaurant_id'])) {
 
 $restaurantId = $_SESSION['restaurant_id'];
 
-// Menü öğelerini ve kategori adlarını al, SortOrder'a göre
+// Menü öğelerini SubCategory ve Category ile birlikte al
 $stmt = $pdo->prepare('
-    SELECT mi.*, mc.CategoryName 
+    SELECT mi.*, sc.SubCategoryID, sc.SubCategoryName, mc.CategoryID, mc.CategoryName
     FROM MenuItems mi
-    LEFT JOIN MenuCategories mc ON mi.CategoryID = mc.CategoryID
+    LEFT JOIN SubCategories sc ON mi.SubCategoryID = sc.SubCategoryID
+    LEFT JOIN MenuCategories mc ON sc.CategoryID = mc.CategoryID
     WHERE mi.RestaurantID = ?
     ORDER BY mi.SortOrder ASC, mi.MenuName ASC
 ');
@@ -49,6 +50,7 @@ $menuItems = $stmt->fetchAll();
                 <th>#</th>
                 <th>Menü Adı</th>
                 <th>Kategori</th>
+                <th>Alt Kategori</th>
                 <th>Açıklama</th>
                 <th>Fiyat</th>
                 <th>İşlemler</th>
@@ -59,7 +61,8 @@ $menuItems = $stmt->fetchAll();
             <tr data-id="<?= $item['MenuItemID'] ?>">
                 <td class="drag-handle">☰</td>
                 <td><?= htmlspecialchars($item['MenuName']) ?></td>
-                <td><?= htmlspecialchars($item['CategoryName']) ?></td>
+                <td><?= htmlspecialchars($item['CategoryName'] ?? '-') ?></td>
+                <td><?= htmlspecialchars($item['SubCategoryName'] ?? '-') ?></td>
                 <td><?= htmlspecialchars($item['Description']) ?></td>
                 <td><?= number_format($item['Price'], 2) ?> ₺</td>
                 <td>
@@ -85,7 +88,7 @@ $(function(){
                 console.log(res);
             });
         }
-    });
+    }).disableSelection(); // Mobil sürükleme desteği için
 });
 </script>
 </body>

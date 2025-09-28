@@ -68,6 +68,8 @@ $categories = $stmt->fetchAll();
 
 <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
 <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+<!-- jQuery UI Touch Punch ile dokunmatik desteği ekliyoruz -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui-touch-punch/0.2.3/jquery.ui.touch-punch.min.js"></script>
 <script>
 $(function(){
     $("#sortable").sortable({

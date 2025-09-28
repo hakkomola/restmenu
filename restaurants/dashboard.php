@@ -58,6 +58,16 @@ $qrImg = $scheme . '://' . $host . $base . '/generate_qr.php?hash=' . $hash;
                 </div>
             </div>
         </div>
+                <div class="col-md-6">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title">Alt Kategoriler</h5>
+                    <p class="card-text">Her kategori için alt kategoriler oluşturabilir, düzenleyebilir veya silebilirsiniz.</p>
+                    <a href="../subcategories/list.php" class="btn btn-primary">Alt Kategorileri Yönet</a>
+                </div>
+            </div>
+        </div>
+
         <div class="col-md-6">
             <div class="card text-center">
                 <div class="card-body">
