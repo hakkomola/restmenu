@@ -5,6 +5,7 @@ if (isset($_SESSION['restaurant_id'])) {
     header('Location: restaurants/dashboard.php');
     exit;
 }
+
 ?>
 <!DOCTYPE html>
 <html lang="tr">
