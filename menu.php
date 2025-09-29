@@ -7,13 +7,14 @@ $catId = $_GET['cat'] ?? null;
 if (!$hash) die('Geçersiz link!');
 
 // Restoranı bul
-$stmt = $pdo->prepare("SELECT RestaurantID,Name FROM Restaurants WHERE MD5(RestaurantID) = ?");
+$stmt = $pdo->prepare("SELECT RestaurantID,Name,BackgroundImage FROM Restaurants WHERE MD5(RestaurantID) = ?");
 $stmt->execute([$hash]);
 $restaurant = $stmt->fetch();
 if (!$restaurant) die('Geçersiz link!');
 
 $restaurantId = $restaurant['RestaurantID'];
 $restaurantName = $restaurant['Name'];
+$backgroundImage = $restaurant['BackgroundImage'];
 
 if ($catId) {
     // Seçili kategori
@@ -27,7 +28,6 @@ if ($catId) {
     $stmt->execute([$catId]);
     $allSubcategories = $stmt->fetchAll();
 
-    // Menü öğeleri alt kategorilere göre gruplanıyor ve subcategory filtresi uygulanıyor
     $subcategories = [];
     $itemsBySub = [];
     foreach ($allSubcategories as $sub) {
@@ -51,7 +51,7 @@ if ($catId) {
                 $items[$index]['images'] = $fixedImages;
             }
 
-            $subcategories[] = $sub; // sadece içinde menu item olan subcategory ekleniyor
+            $subcategories[] = $sub;
             $itemsBySub[$sub['SubCategoryID']] = $items;
         }
     }
@@ -71,7 +71,13 @@ if ($catId) {
 <title>Menü</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 <style>
-body { background-color: #f8f9fa; }
+body { 
+    background-color: #f8f9fa; 
+    <?php if ($backgroundImage): ?>
+    background: url('<?= htmlspecialchars(ltrim($backgroundImage, '/')) ?>') no-repeat center center fixed;
+    background-size: cover;
+    <?php endif; ?>
+}
 .category-img, .menu-img { height: 200px; object-fit: cover; border-radius: 8px; }
 .card:hover { box-shadow: 0 8px 16px rgba(0,0,0,0.2); transition: 0.3s; cursor: pointer; }
 .carousel-control-prev-icon, .carousel-control-next-icon {
@@ -84,7 +90,7 @@ body { background-color: #f8f9fa; }
     position: sticky;
     top: 0;
     z-index: 1000;
-    background: #fff;
+    background-color: rgba(255, 255, 255, 0.8);
     padding: 10px 0;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
@@ -94,10 +100,9 @@ body { background-color: #f8f9fa; }
 }
 </style>
 </head>
-<body data-bs-spy="scroll" data-bs-target="#subcategoryNav" data-bs-offset="80" tabindex="0">
+<body data-bs-spy="scroll" data-bs-target="#subcategoryNav" data-bs-offset="200" tabindex="0">
 
 <div class="container mt-4">
-
 <?php if (!$catId): ?>
     <h1 class="mb-4 text-center"><?=$restaurantName?></h1>
     <div class="row g-4">
@@ -116,7 +121,6 @@ body { background-color: #f8f9fa; }
             </div>
         <?php endforeach; ?>
     </div>
-
 <?php else: ?>
     <h1 class="mb-4 text-center"><?= htmlspecialchars($category['CategoryName']) ?> Menüsü</h1>
 
@@ -134,41 +138,44 @@ body { background-color: #f8f9fa; }
     <?php endif; ?>
 
     <div data-bs-spy="scroll" data-bs-target="#subcategoryNav" data-bs-offset="80" tabindex="0">
-        <?php foreach ($subcategories as $sub): ?>
-            <h3 id="sub<?= $sub['SubCategoryID'] ?>" class="mt-4"><?= htmlspecialchars($sub['SubCategoryName']) ?></h3>
-            <div class="row g-4">
-                <?php foreach ($itemsBySub[$sub['SubCategoryID']] as $item): ?>
-                    <div class="col-12 col-md-6 col-lg-4">
-                        <div class="card h-100">
-                            <?php if (!empty($item['images'])): ?>
-                                <div id="carousel<?= $item['MenuItemID'] ?>" class="carousel slide" data-bs-ride="carousel">
-                                    <div class="carousel-inner">
-                                        <?php foreach ($item['images'] as $i => $img): ?>
-                                            <div class="carousel-item <?= $i === 0 ? 'active' : '' ?>">
-                                                <img src="<?= htmlspecialchars($img['ImageURL']) ?>" class="d-block w-100 menu-img" alt="Menü Resmi">
-                                            </div>
-                                        <?php endforeach; ?>
-                                    </div>
-                                    <?php if (count($item['images']) > 1): ?>
-                                        <button class="carousel-control-prev" type="button" data-bs-target="#carousel<?= $item['MenuItemID'] ?>" data-bs-slide="prev">
-                                            <span class="carousel-control-prev-icon" aria-hidden="true"></span>
-                                        </button>
-                                        <button class="carousel-control-next" type="button" data-bs-target="#carousel<?= $item['MenuItemID'] ?>" data-bs-slide="next">
-                                            <span class="carousel-control-next-icon" aria-hidden="true"></span>
-                                        </button>
-                                    <?php endif; ?>
+      <?php foreach ($subcategories as $sub): ?>
+    <section id="sub<?= $sub['SubCategoryID'] ?>" class="subcategory-section mt-4">
+        <h3><?= htmlspecialchars($sub['SubCategoryName']) ?></h3>
+        <div class="row g-4">
+            <?php foreach ($itemsBySub[$sub['SubCategoryID']] as $item): ?>
+                <div class="col-12 col-md-6 col-lg-4">
+                    <div class="card h-100">
+                        <?php if (!empty($item['images'])): ?>
+                            <div id="carousel<?= $item['MenuItemID'] ?>" class="carousel slide" data-bs-ride="carousel">
+                                <div class="carousel-inner">
+                                    <?php foreach ($item['images'] as $i => $img): ?>
+                                        <div class="carousel-item <?= $i === 0 ? 'active' : '' ?>">
+                                            <img src="<?= htmlspecialchars($img['ImageURL']) ?>" class="d-block w-100 menu-img" alt="Menü Resmi">
+                                        </div>
+                                    <?php endforeach; ?>
                                 </div>
-                            <?php endif; ?>
-                            <div class="card-body">
-                                <h5 class="card-title"><?= htmlspecialchars($item['MenuName']) ?></h5>
-                                <p class="card-text"><?= htmlspecialchars($item['Description']) ?></p>
-                                <p class="fw-bold"><?= number_format($item['Price'], 2) ?> ₺</p>
+                                <?php if (count($item['images']) > 1): ?>
+                                    <button class="carousel-control-prev" type="button" data-bs-target="#carousel<?= $item['MenuItemID'] ?>" data-bs-slide="prev">
+                                        <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                                    </button>
+                                    <button class="carousel-control-next" type="button" data-bs-target="#carousel<?= $item['MenuItemID'] ?>" data-bs-slide="next">
+                                        <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                                    </button>
+                                <?php endif; ?>
                             </div>
+                        <?php endif; ?>
+                        <div class="card-body">
+                            <h5 class="card-title"><?= htmlspecialchars($item['MenuName']) ?></h5>
+                            <p class="card-text"><?= htmlspecialchars($item['Description']) ?></p>
+                            <p class="fw-bold"><?= number_format($item['Price'], 2) ?> ₺</p>
                         </div>
                     </div>
-                <?php endforeach; ?>
-            </div>
-        <?php endforeach; ?>
+                </div>
+            <?php endforeach; ?>
+        </div>
+    </section>
+<?php endforeach; ?>
+
     </div>
 <?php endif; ?>
 </div>
