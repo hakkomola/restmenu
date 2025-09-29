@@ -5,25 +5,49 @@ require_once __DIR__ . '/../db.php';
 include __DIR__ . '/../includes/navbar.php';
 
 if (!isset($_SESSION['restaurant_id'])) {
-    header('Location: ../restaurants/login.php');
+    header('Location: ../restaurants/dashboard.php');
     exit;
 }
 
 $restaurantId = $_SESSION['restaurant_id'];
 
-// Menü öğelerini SubCategory ve Category ile birlikte al
-$stmt = $pdo->prepare('
+// Tüm ana kategoriler ve alt kategoriler
+$categories = $pdo->prepare("SELECT * FROM MenuCategories WHERE RestaurantID=? ORDER BY CategoryName ASC");
+$categories->execute([$restaurantId]);
+$categories = $categories->fetchAll();
+
+$subcategories = $pdo->prepare("SELECT * FROM SubCategories WHERE RestaurantID=? ORDER BY SubCategoryName ASC");
+$subcategories->execute([$restaurantId]);
+$subcategories = $subcategories->fetchAll();
+
+// Filtreler
+$filterCategory = $_GET['category'] ?? '';
+$filterSubCategory = $_GET['subcategory'] ?? '';
+
+// Menü öğelerini al
+$sql = '
     SELECT mi.*, sc.SubCategoryID, sc.SubCategoryName, mc.CategoryID, mc.CategoryName
     FROM MenuItems mi
     LEFT JOIN SubCategories sc ON mi.SubCategoryID = sc.SubCategoryID
     LEFT JOIN MenuCategories mc ON sc.CategoryID = mc.CategoryID
     WHERE mi.RestaurantID = ?
-    ORDER BY mi.SortOrder ASC, mi.MenuName ASC
-');
-$stmt->execute([$restaurantId]);
+';
+$params = [$restaurantId];
+
+if ($filterCategory) {
+    $sql .= " AND mc.CategoryID = ?";
+    $params[] = $filterCategory;
+}
+if ($filterSubCategory) {
+    $sql .= " AND sc.SubCategoryID = ?";
+    $params[] = $filterSubCategory;
+}
+
+$sql .= " ORDER BY mi.SortOrder ASC, mi.MenuName ASC";
+$stmt = $pdo->prepare($sql);
+$stmt->execute($params);
 $menuItems = $stmt->fetchAll();
 ?>
-
 <!DOCTYPE html>
 <html lang="tr">
 <head>
@@ -41,8 +65,33 @@ $menuItems = $stmt->fetchAll();
 <body>
 <div class="container mt-5">
     <h2 class="mb-4">Menü Öğeleri</h2>
-    <a href="create.php" class="btn btn-success mb-3">Yeni Menü Öğesi Ekle</a>
-    <a href="../restaurants/dashboard.php" class="btn btn-secondary mb-3">Geri</a>
+
+    <div class="row mb-3">
+        <div class="col-md-4">
+            <select id="categoryFilter" class="form-select">
+                <option value="">-- Ana Kategori Seç --</option>
+                <?php foreach ($categories as $cat): ?>
+                    <option value="<?= $cat['CategoryID'] ?>" <?= $filterCategory == $cat['CategoryID'] ? 'selected' : '' ?>>
+                        <?= htmlspecialchars($cat['CategoryName']) ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <div class="col-md-4">
+            <select id="subcategoryFilter" class="form-select">
+                <option value="">-- Alt Kategori Seç --</option>
+                <?php foreach ($subcategories as $sub): ?>
+                    <option value="<?= $sub['SubCategoryID'] ?>" <?= $filterSubCategory == $sub['SubCategoryID'] ? 'selected' : '' ?>>
+                        <?= htmlspecialchars($sub['SubCategoryName']) ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <div class="col-md-4">
+            <a href="create.php" class="btn btn-success">Yeni Menü Öğesi Ekle</a>
+            <a href="../restaurants/dashboard.php" class="btn btn-secondary">Geri</a>
+        </div>
+    </div>
 
     <table class="table table-bordered" id="menu-table">
         <thead>
@@ -77,6 +126,7 @@ $menuItems = $stmt->fetchAll();
 
 <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
 <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui-touch-punch/0.2.3/jquery.ui.touch-punch.min.js"></script>
 <script>
 $(function(){
     $("#sortable").sortable({
@@ -88,7 +138,20 @@ $(function(){
                 console.log(res);
             });
         }
-    }).disableSelection(); // Mobil sürükleme desteği için
+    });
+
+    // Filtre değişince sayfayı yeniden yükle
+    $('#categoryFilter').change(function(){
+        let cat = $(this).val();
+        let sub = $('#subcategoryFilter').val();
+        window.location.href = '?category=' + cat + '&subcategory=' + sub;
+    });
+
+    $('#subcategoryFilter').change(function(){
+        let cat = $('#categoryFilter').val();
+        let sub = $(this).val();
+        window.location.href = '?category=' + cat + '&subcategory=' + sub;
+    });
 });
 </script>
 </body>

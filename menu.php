@@ -17,43 +17,48 @@ $restaurantName = $restaurant['Name'];
 
 if ($catId) {
     // Seçili kategori
-    $stmt = $pdo->prepare("SELECT * FROM MenuCategories WHERE CategoryID = ? AND RestaurantID = ?");
+    $stmt = $pdo->prepare("SELECT * FROM MenuCategories WHERE CategoryID = ? AND RestaurantID = ? ORDER BY SortOrder,CategoryName");
     $stmt->execute([$catId, $restaurantId]);
     $category = $stmt->fetch();
     if (!$category) die('Kategori bulunamadı!');
 
     // Alt kategoriler
-    $stmt = $pdo->prepare("SELECT * FROM subcategories WHERE CategoryID = ? ORDER BY SubCategoryName");
+    $stmt = $pdo->prepare("SELECT * FROM subcategories WHERE CategoryID = ? ORDER BY SortOrder,SubCategoryName");
     $stmt->execute([$catId]);
-    $subcategories = $stmt->fetchAll();
+    $allSubcategories = $stmt->fetchAll();
 
-    // Menü öğeleri alt kategorilere göre gruplanıyor
+    // Menü öğeleri alt kategorilere göre gruplanıyor ve subcategory filtresi uygulanıyor
+    $subcategories = [];
     $itemsBySub = [];
-    foreach ($subcategories as $sub) {
+    foreach ($allSubcategories as $sub) {
         $stmt2 = $pdo->prepare("SELECT * FROM MenuItems WHERE SubCategoryID = ? ORDER BY MenuName");
         $stmt2->execute([$sub['SubCategoryID']]);
         $items = $stmt2->fetchAll();
 
-        foreach ($items as $index => $item) {
-            $stmt3 = $pdo->prepare("SELECT * FROM MenuImages WHERE MenuItemID = ?");
-            $stmt3->execute([$item['MenuItemID']]);
-            $images = $stmt3->fetchAll();
+        if (count($items) > 0) {
+            foreach ($items as $index => $item) {
+                $stmt3 = $pdo->prepare("SELECT * FROM MenuImages WHERE MenuItemID = ?");
+                $stmt3->execute([$item['MenuItemID']]);
+                $images = $stmt3->fetchAll();
 
-            $fixedImages = [];
-            foreach ($images as $img) {
-                $url = ltrim($img['ImageURL'], '/');
-                if (strpos($url, 'uploads/') !== 0) $url = 'uploads/' . $url;
-                $img['ImageURL'] = $url;
-                $fixedImages[] = $img;
+                $fixedImages = [];
+                foreach ($images as $img) {
+                    $url = ltrim($img['ImageURL'], '/');
+                    if (strpos($url, 'uploads/') !== 0) $url = 'uploads/' . $url;
+                    $img['ImageURL'] = $url;
+                    $fixedImages[] = $img;
+                }
+                $items[$index]['images'] = $fixedImages;
             }
-            $items[$index]['images'] = $fixedImages;
-        }
 
-        $itemsBySub[$sub['SubCategoryID']] = $items;
+            $subcategories[] = $sub; // sadece içinde menu item olan subcategory ekleniyor
+            $itemsBySub[$sub['SubCategoryID']] = $items;
+        }
     }
+
 } else {
     // Ana kategori listesi
-    $stmt = $pdo->prepare("SELECT * FROM MenuCategories WHERE RestaurantID = ? ORDER BY CategoryName");
+    $stmt = $pdo->prepare("SELECT * FROM MenuCategories WHERE RestaurantID = ? ORDER BY SortOrder,CategoryName");
     $stmt->execute([$restaurantId]);
     $categories = $stmt->fetchAll();
 }
@@ -114,12 +119,11 @@ body { background-color: #f8f9fa; }
 
 <?php else: ?>
     <h1 class="mb-4 text-center"><?= htmlspecialchars($category['CategoryName']) ?> Menüsü</h1>
-    <div class="mb-3 text-center">
-        <a href="?hash=<?= htmlspecialchars($hash) ?>" class="btn btn-secondary">← Kategorilere Dön</a>
-    </div>
 
     <?php if ($subcategories): ?>
     <div id="subcategoryNav" class="subcategory-menu text-center">
+        <a href="?hash=<?= htmlspecialchars($hash) ?>" class="btn btn-success">Ana Menü</a> 
+        <br><br>
         <?php foreach ($subcategories as $index => $sub): ?>
             <a href="#sub<?= $sub['SubCategoryID'] ?>" 
                class="btn btn-outline-primary <?= $index === 0 ? 'active' : '' ?>">
@@ -171,7 +175,6 @@ body { background-color: #f8f9fa; }
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-// İlk açıldığında ilk subcategory seçili kalsın
 document.addEventListener("DOMContentLoaded", function() {
     const firstBtn = document.querySelector("#subcategoryNav .btn");
     if (firstBtn) {
@@ -181,4 +184,3 @@ document.addEventListener("DOMContentLoaded", function() {
 </script>
 </body>
 </html>
-

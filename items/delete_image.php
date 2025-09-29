@@ -1,41 +1,26 @@
 <?php
+// items/delete_image.php
 session_start();
 require_once __DIR__ . '/../db.php';
 
-if (!isset($_SESSION['restaurant_id'])) {
-    http_response_code(403);
-    echo "Unauthorized";
-    exit;
-}
+if (!isset($_SESSION['restaurant_id'])) exit;
 
-$id = $_POST['id'] ?? null; // silinecek resmin ID'si
-$item_id = $_POST['item_id'] ?? null;
+$id = $_GET['id'] ?? null;
+$menuId = $_GET['menu_id'] ?? null;
 
-if (!$id || !$item_id) {
-    http_response_code(400);
-    echo "Eksik veri";
-    exit;
-}
+if(!$id || !$menuId) exit;
 
-// Resmi bul
-$stmt = $pdo->prepare("SELECT * FROM menuimages WHERE MenuImageID=?");
+// Resmi veritabanından al
+$stmt = $pdo->prepare("SELECT ImageURL FROM MenuImages WHERE MenuImageID=?");
 $stmt->execute([$id]);
 $image = $stmt->fetch(PDO::FETCH_ASSOC);
 
-if (!$image) {
-    http_response_code(404);
-    echo "Resim bulunamadı";
-    exit;
+if($image){
+    $path = __DIR__ . '/../' . $image['ImageURL'];
+    if(file_exists($path)) unlink($path); // dosyayı sil
+    $delStmt = $pdo->prepare("DELETE FROM MenuImages WHERE MenuImageID=?");
+    $delStmt->execute([$id]);
 }
 
-// Sunucudan sil
-$path = __DIR__ . "/../uploads/" . $image['ImageURL'];
-if (file_exists($path)) {
-    unlink($path);
-}
-
-// Veritabanından sil
-$stmt = $pdo->prepare("DELETE FROM menuimages WHERE MenuImageID=?");
-$stmt->execute([$id]);
-
-echo "ok";
+header("Location: edit.php?id=$menuId");
+exit;

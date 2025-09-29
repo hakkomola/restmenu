@@ -28,6 +28,18 @@ if (!$sub) {
 
 $message = '';
 
+// Resim silme işlemi
+if (isset($_GET['delete_image']) && $_GET['delete_image'] == 1 && $sub['ImageURL']) {
+    $imgPath = __DIR__ . '/../' . $sub['ImageURL'];
+    if (file_exists($imgPath)) unlink($imgPath);
+
+    $update = $pdo->prepare("UPDATE SubCategories SET ImageURL=NULL WHERE SubCategoryID=?");
+    $update->execute([$id]);
+
+    header("Location: edit.php?id=$id");
+    exit;
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $name = $_POST['name'] ?? '';
 
@@ -45,6 +57,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $target = $uploadsDir . $fileName;
 
             if (move_uploaded_file($_FILES['image']['tmp_name'], $target)) {
+                // Önce eski resmi sil
+                if ($imageUrl && file_exists(__DIR__ . '/../' . $imageUrl)) unlink(__DIR__ . '/../' . $imageUrl);
                 $imageUrl = 'uploads/' . $fileName;
             }
         }
@@ -65,6 +79,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Alt Kategori Düzenle</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<style>
+.img-container { position: relative; display: inline-block; margin-bottom: 10px; }
+.img-container img { height: 100px; object-fit: cover; display: block; }
+.img-container .delete-btn {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background: red;
+    color: white;
+    border-radius: 50%;
+    border: none;
+    width: 22px;
+    height: 22px;
+    line-height: 18px;
+    font-weight: bold;
+    text-align: center;
+    cursor: pointer;
+}
+</style>
 </head>
 <body>
 <div class="container mt-5" style="max-width:600px;">
@@ -79,18 +112,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <label>Alt Kategori Adı</label>
             <input type="text" name="name" class="form-control" value="<?= htmlspecialchars($sub['SubCategoryName']) ?>" required>
         </div>
+
+        <!-- Mevcut resim ve silme -->
         <div class="mb-3">
             <label>Mevcut Resim</label><br>
             <?php if ($sub['ImageURL']): ?>
-                <img src="../<?= htmlspecialchars($sub['ImageURL']) ?>" style="height:100px; object-fit:cover;" class="mb-2">
+                <div class="img-container">
+                    <img src="../<?= htmlspecialchars($sub['ImageURL']) ?>">
+                    <a href="edit.php?id=<?= $id ?>&delete_image=1" class="delete-btn" onclick="return confirm('Bu resmi silmek istediğinize emin misiniz?')">&times;</a>
+                </div>
             <?php else: ?>
                 <p>Resim yok</p>
             <?php endif; ?>
         </div>
+
         <div class="mb-3">
             <label>Yeni Resim Yükle (Opsiyonel)</label>
             <input type="file" name="image" class="form-control" accept="image/*">
         </div>
+
         <button class="btn btn-success">Güncelle</button>
         <a href="list.php?cat=<?= $sub['CategoryID'] ?>" class="btn btn-secondary">Geri</a>
     </form>

@@ -8,27 +8,30 @@ if (!isset($_SESSION['restaurant_id'])) {
     exit;
 }
 
-$restaurantId = $_SESSION['restaurant_id'];
 $id = $_GET['id'] ?? null;
-
-if ($id) {
-    // Önce kategori mevcut mu kontrol et
-    $stmt = $pdo->prepare('SELECT * FROM MenuCategories WHERE CategoryID = ? AND RestaurantID = ?');
-    $stmt->execute([$id, $restaurantId]);
-    $category = $stmt->fetch();
-
-    if ($category) {
-        // Eğer kategoriye ait resim varsa dosyadan sil
-        if ($category['ImageURL'] && file_exists(__DIR__ . '/../' . $category['ImageURL'])) {
-            unlink(__DIR__ . '/../' . $category['ImageURL']);
-        }
-
-        // Kategoriyi sil
-        $stmt = $pdo->prepare('DELETE FROM MenuCategories WHERE CategoryID = ? AND RestaurantID = ?');
-        $stmt->execute([$id, $restaurantId]);
-    }
+if (!$id) {
+    header('Location: list.php');
+    exit;
 }
 
-// Liste sayfasına geri yönlendir
+// Önce kategori bilgilerini al
+$stmt = $pdo->prepare("SELECT ImageURL FROM MenuCategories WHERE CategoryID=? AND RestaurantID=?");
+$stmt->execute([$id, $_SESSION['restaurant_id']]);
+$cat = $stmt->fetch();
+
+if ($cat) {
+    // Resim dosyasını sil
+    if (!empty($cat['ImageURL'])) {
+        $filePath = __DIR__ . '/../' . $cat['ImageURL'];
+        if (file_exists($filePath)) {
+            unlink($filePath);
+        }
+    }
+
+    // Kategoriyi sil
+    $del = $pdo->prepare("DELETE FROM MenuCategories WHERE CategoryID=? AND RestaurantID=?");
+    $del->execute([$id, $_SESSION['restaurant_id']]);
+}
+
 header('Location: list.php');
 exit;
