@@ -90,6 +90,16 @@ $qrImg = $scheme . '://' . $host . $base . '/generate_qr.php?hash=' . $hash;
             </div>
         </div>
 
+    <div class="col-md-6">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title">Restoran Bilgileri</h5>
+                    <p class="card-text">Restoran Bilgilerinizi düzenleyin.</p>
+                    <a href="../restaurants/profile.php" class="btn btn-warning">Restoran Bilgilerim</a>
+                </div>
+            </div>
+        </div>
+
     </div>
 
 </div>
