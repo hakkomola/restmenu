@@ -2,6 +2,8 @@
 // restaurants/login.php
 session_start();
 require_once __DIR__ . '/../db.php';
+include __DIR__ . '/../includes/mainnavbar.php';
+
 
 if (isset($_SESSION['restaurant_id'])) {
     header('Location: dashboard.php');

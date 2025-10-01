@@ -1,6 +1,7 @@
 <?php
 // restaurants/register.php
 session_start();
+include __DIR__ . '/../includes/mainnavbar.php';
 
 require_once dirname(__DIR__) . '/db.php';    // ✅
 
