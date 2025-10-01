@@ -1,6 +1,9 @@
 <?php
 // includes/mainnavbar.php
 ?>
+<head>
+        <link rel="icon" type="image/png" href="../images/menufav.ico">
+</head>
 <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
     <div class="container">
         <a class="navbar-brand" href="../index.php">Vov Menu</a>

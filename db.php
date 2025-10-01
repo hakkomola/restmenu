@@ -1,10 +1,22 @@
 <?php
-// db.php - Veritabanı bağlantısı
+// prod db.php - Veritabanı bağlantısı
+
+/*
+$host = 'localhost:3306';
+$db   = 'modifero_restmenu';      //modifero_restmenu Senin verdiğin veritabanı adı 'restmenu'
+$user = 'modifero_restmenu';          // modifero_restmenu MySQL kullanıcı adı 'root'
+$pass = 'Pg9AI-I]@hZQ';    // 'Pg9AI-I]@hZQ' MySQL şifre (XAMPP default boş) '1q2w3e4r..'
+//$charset = 'utf8mb4';
+*/
+
+
+
 $host = '127.0.0.1';
-$db   = 'restmenu';      // Senin verdiğin veritabanı adı
-$user = 'root';          // MySQL kullanıcı adı
-$pass = '1q2w3e4r..';              // MySQL şifre (XAMPP default boş)
+$db   = 'restmenu';      //modifero_restmenu Senin verdiğin veritabanı adı 'restmenu'
+$user = 'root';          // modifero_restmenu MySQL kullanıcı adı 'root'
+$pass = '1q2w3e4r..';    // 'Pg9AI-I]@hZQ' MySQL şifre (XAMPP default boş) '1q2w3e4r..'
 $charset = 'utf8mb4';
+
 
 $dsn = "mysql:host=$host;dbname=$db;charset=$charset";
 $options = [

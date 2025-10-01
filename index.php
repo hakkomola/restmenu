@@ -1,5 +1,4 @@
 <?php
-// index.php
 session_start();
 if (isset($_SESSION['restaurant_id'])) {
     header('Location: restaurants/dashboard.php');
@@ -9,6 +8,8 @@ if (isset($_SESSION['restaurant_id'])) {
 <!DOCTYPE html>
 <html lang="tr">
 <head>
+    <link rel="icon" type="image/png" href="images/menufav.ico">
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>VovMenu - Restoran Menü Oluştur</title>
@@ -16,16 +17,37 @@ if (isset($_SESSION['restaurant_id'])) {
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
 <style>
     body { font-family: Arial, sans-serif; background: #f8f9fa; }
+
+    /* Hero alanı ve overlay */
     .hero {
+        position: relative;
         background: url('images/herobackground.jpeg') center/cover no-repeat;
         color: white;
         text-align: center;
         padding: 100px 20px;
         border-radius: 0 0 30px 30px;
         margin-bottom: 40px;
+    }
+
+    /* Overlay ekleniyor */
+    .hero::before {
+        content: "";
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background-color: rgba(0,0,0,0.4); /* yarı saydam karartma */
+        border-radius: 0 0 30px 30px;
+        z-index: 0;
+    }
+
+    .hero h1, .hero p, .hero a {
+        position: relative;
+        z-index: 1; /* overlay üstünde görünmesi için */
         text-shadow: 0 2px 6px rgba(0,0,0,0.5);
     }
+
     .hero h1 { font-weight: bold; font-size: 3rem; }
+
+    /* Özellik kartları */
     .feature-card {
         border-radius: 20px;
         padding: 30px 20px;
@@ -36,8 +58,23 @@ if (isset($_SESSION['restaurant_id'])) {
     }
     .feature-card:hover { transform: scale(1.05); }
     .feature-card i { font-size: 3rem; color: #ff7e5f; margin-bottom: 15px; }
-    .demo-card { border-radius: 20px; padding: 30px; background: #fff3e0; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-    footer { margin-top: 50px; padding: 20px; text-align: center; background: #343a40; color: white; border-radius: 20px 20px 0 0; }
+
+    /* Demo Menü Kartı */
+    .demo-card { 
+        border-radius: 20px; 
+        padding: 30px; 
+        background: #fff3e0; 
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1); 
+    }
+
+    footer { 
+        margin-top: 50px; 
+        padding: 20px; 
+        text-align: center; 
+        background: #343a40; 
+        color: white; 
+        border-radius: 20px 20px 0 0; 
+    }
 </style>
 </head>
 <body>

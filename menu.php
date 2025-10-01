@@ -1,4 +1,5 @@
 <?php
+
 require_once __DIR__ . '/db.php';
 
 $hash = $_GET['hash'] ?? null;
@@ -24,7 +25,7 @@ if ($catId) {
     if (!$category) die('Kategori bulunamadı!');
 
     // Alt kategoriler
-    $stmt = $pdo->prepare("SELECT * FROM subcategories WHERE CategoryID = ? ORDER BY SortOrder,SubCategoryName");
+    $stmt = $pdo->prepare("SELECT * FROM SubCategories WHERE CategoryID = ? ORDER BY SortOrder,SubCategoryName");
     $stmt->execute([$catId]);
     $allSubcategories = $stmt->fetchAll();
 
@@ -105,6 +106,19 @@ body {
 <div class="container mt-4">
 <?php if (!$catId): ?>
     <h1 class="mb-4 text-center"><?=$restaurantName?></h1>
+
+    <!-- AD SENSE REKLAM -->
+    <div class="my-4 text-center">
+        <ins class="adsbygoogle"
+             style="display:block;width:728px;height:90px;margin:0 auto;"
+             data-ad-client="ca-pub-5155686402205048"
+             data-ad-slot="1234567890"
+             data-ad-format="horizontal"></ins>
+        <script>
+             (adsbygoogle = window.adsbygoogle || []).push({});
+        </script>
+    </div>
+
     <div class="row g-4">
         <?php foreach ($categories as $cat): ?>
             <div class="col-12 col-md-6 col-lg-4">
