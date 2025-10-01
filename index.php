@@ -11,7 +11,7 @@ if (isset($_SESSION['restaurant_id'])) {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Restoran Menü Oluştur</title>
+<title>VovMenu - Restoran Menü Oluştur</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
 <style>
@@ -44,7 +44,7 @@ if (isset($_SESSION['restaurant_id'])) {
 
 <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
     <div class="container">
-        <a class="navbar-brand" href="#">Ücretsiz Restoran Menüsü</a>
+        <a class="navbar-brand" href="#">Vov Menu</a>
         <div class="d-flex">
             <a href="restaurants/login.php" class="btn btn-light me-2">Giriş Yap</a>
             <a href="restaurants/register.php" class="btn btn-outline-light">Üye Ol</a>
@@ -54,7 +54,7 @@ if (isset($_SESSION['restaurant_id'])) {
 
 <!-- Hero Alanı -->
 <div class="hero">
-    <h1>Kendi Restoran Menünüzü Ücretsiz Oluşturun</h1>
+    <h1>Kendi Restoran Menünüzü VovMenu ile Ücretsiz Oluşturun</h1>
     <p class="lead mb-4">Menülerinizi kolayca ekleyin, kategorilere ayırın ve müşterilerinize gösterin.</p>
     <a href="restaurants/register.php" class="btn btn-light btn-lg me-2">Hemen Üye Ol</a>
     <a href="restaurants/login.php" class="btn btn-outline-light btn-lg">Giriş Yap</a>
@@ -91,13 +91,13 @@ if (isset($_SESSION['restaurant_id'])) {
 <section class="container text-center py-5">
     <div class="demo-card mx-auto" style="max-width: 500px;">
         <h4 class="card-title mb-3"><i class="bi bi-book"></i> Örnek Menü</h4>
-        <p class="card-text mb-4">Bu site kullanılarak oluşturulmuş örnek menüyü inceleyebilirsiniz.</p>
+        <p class="card-text mb-4">Vov Menu kullanılarak oluşturulmuş örnek menüyü inceleyebilirsiniz.</p>
         <a href="menu.php?hash=c81e728d9d4c2f636f067f89cc14862c" class="btn btn-success btn-lg" target="_blank">Menüyü Gör</a>
     </div>
 </section>
 
 <footer>
-    &copy; <?= date('Y') ?> Ücretsiz Restoran Menüsü
+    &copy; <?= date('Y') ?> VovMenu
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
