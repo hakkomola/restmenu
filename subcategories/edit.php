@@ -2,7 +2,6 @@
 // subcategories/edit.php
 session_start();
 require_once __DIR__ . '/../db.php';
-include __DIR__ . '/../includes/navbar.php';
 
 if (!isset($_SESSION['restaurant_id'])) {
     header('Location: ../restaurants/login.php');
@@ -70,6 +69,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 }
+include __DIR__ . '/../includes/navbar.php';
+
 ?>
 
 <!DOCTYPE html>

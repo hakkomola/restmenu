@@ -52,6 +52,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Mevcut resim
 $imageURL = $category['ImageURL'] ?? '';
+include __DIR__ . '/../includes/navbar.php';
 ?>
 
 <!DOCTYPE html>
