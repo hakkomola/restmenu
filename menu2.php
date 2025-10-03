@@ -79,8 +79,25 @@ body {
     background-size: cover;
     <?php endif; ?>
 }
-.category-img, .menu-img { height: 200px; object-fit: cover; border-radius: 8px; }
-.card:hover { box-shadow: 0 8px 16px rgba(0,0,0,0.2); transition: 0.3s; cursor: pointer; }
+.category-img, .menu-img { 
+    height: 200px; 
+    object-fit: cover; 
+    border-radius: 12px; 
+    transition: transform 0.3s, filter 0.3s;
+    filter: brightness(0.9);
+}
+.category-img:hover, .menu-img:hover {
+    transform: scale(1.05);
+    filter: brightness(1);
+}
+.card { 
+    border-radius: 12px;
+    transition: transform 0.3s, box-shadow 0.3s;
+}
+.card:hover { 
+    box-shadow: 0 12px 24px rgba(0,0,0,0.2);
+    transform: translateY(-5px);
+}
 .carousel-control-prev-icon, .carousel-control-next-icon {
     background-color: rgba(0,0,0,0.5);
     border-radius: 50%;
@@ -91,13 +108,24 @@ body {
     position: sticky;
     top: 0;
     z-index: 1000;
-    background-color: rgba(255, 255, 255, 0.8);
-    padding: 10px 0;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    background-color: rgba(255, 255, 255, 0.9);
+    padding: 12px 0;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    backdrop-filter: blur(5px);
 }
 .subcategory-menu .btn.active {
-    background-color: #0d6efd;
+    background: linear-gradient(90deg, #0d6efd, #6610f2);
     color: #fff;
+}
+.subcategory-menu .btn:hover {
+    transform: scale(1.05);
+    transition: 0.2s;
+}
+.card-body h5 { font-weight: 600; }
+.card-body p.fw-bold { color: #0d6efd; font-size: 1.1rem; }
+.subcategory-section h3 { 
+    margin-bottom: 20px;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
 }
 </style>
 </head>
@@ -105,11 +133,9 @@ body {
 
 <div class="container mt-4">
 <?php if (!$catId): ?>
- 
-    <!-- AD SENSE REKLAM (Responsive) -->
     <div class="my-4 text-center">
         <ins class="adsbygoogle"
-             style="display:block;width:100%;max-width:728px;height:90px;margin:0 auto;"
+             style="display:block;width:728px;height:90px;margin:0 auto;"
              data-ad-client="ca-pub-5155686402205048"
              data-ad-slot="1234567890"
              data-ad-format="horizontal"></ins>
@@ -117,7 +143,7 @@ body {
              (adsbygoogle = window.adsbygoogle || []).push({});
         </script>
     </div>
-   <h1 class="mb-4 text-center"><?=$restaurantName?></h1>
+    <h1 class="mb-4 text-center"><?=$restaurantName?></h1>
 
     <div class="row g-4">
         <?php foreach ($categories as $cat): ?>
@@ -154,11 +180,10 @@ body {
     <div data-bs-spy="scroll" data-bs-target="#subcategoryNav" data-bs-offset="80" tabindex="0">
       <?php foreach ($subcategories as $sub): ?>
     <section id="sub<?= $sub['SubCategoryID'] ?>" class="subcategory-section mt-4">
-    <h3><?= htmlspecialchars($sub['SubCategoryName']) ?></h3>
-    <div class="row g-4">
-        <?php foreach ($itemsBySub[$sub['SubCategoryID']] as $item): ?>
-            <div class="col-12 col-md-6 col-lg-4">
-                <a href="menu_item.php?id=<?= $item['MenuItemID'] ?>&hash=<?= htmlspecialchars($hash) ?>" class="text-decoration-none text-dark">
+        <h3><?= htmlspecialchars($sub['SubCategoryName']) ?></h3>
+        <div class="row g-4">
+            <?php foreach ($itemsBySub[$sub['SubCategoryID']] as $item): ?>
+                <div class="col-12 col-md-6 col-lg-4">
                     <div class="card h-100">
                         <?php if (!empty($item['images'])): ?>
                             <div id="carousel<?= $item['MenuItemID'] ?>" class="carousel slide" data-bs-ride="carousel">
@@ -185,12 +210,10 @@ body {
                             <p class="fw-bold"><?= number_format($item['Price'], 2) ?> ₺</p>
                         </div>
                     </div>
-                </a>
-            </div>
-        <?php endforeach; ?>
-    </div>
-</section>
-
+                </div>
+            <?php endforeach; ?>
+        </div>
+    </section>
 <?php endforeach; ?>
 
     </div>
