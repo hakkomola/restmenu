@@ -50,7 +50,36 @@ body {
     background-size: cover;
     <?php endif; ?>
 }
-.menu-img { max-height: 400px; object-fit: cover; border-radius: 8px; }
+
+.menu-img {
+    width: 100%;
+    height: 400px; /* Sabit yükseklik */
+    object-fit: cover; /* Resim taşmasını önler, kırpar ama bozulmaz */
+    border-radius: 8px;
+}
+.carousel-item {
+    height: 400px; /* Carousel item yüksekliği sabit */
+  
+    justify-content: center;
+    align-items: center;
+}
+
+.carousel-control-prev-icon,
+.carousel-control-next-icon {
+    background-color: rgba(0, 0, 0, 0.7); /* Daha koyu arka plan */
+    border-radius: 50%;
+    padding: 12px;
+    width: 40px;  /* Genişliği arttır */
+    height: 40px; /* Yüksekliği arttır */
+}
+.carousel-control-prev,
+.carousel-control-next {
+    top: 50%;
+    transform: translateY(-50%);
+    opacity: 0.7; /* Her zaman görünür */
+}
+
+
 .card { margin-bottom: 20px; }
 </style>
 </head>
@@ -81,7 +110,8 @@ body {
     <p><?= htmlspecialchars($item['Description']) ?></p>
     <p class="fw-bold"><?= number_format($item['Price'], 2) ?> ₺</p>
 
-    <a href="menu.php?hash=<?= htmlspecialchars($hash) ?>" class="btn btn-primary">Geri</a>
+    <a href="javascript:history.back()" class="btn btn-primary">Geri</a>
+
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
