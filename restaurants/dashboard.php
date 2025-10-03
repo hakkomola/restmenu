@@ -78,6 +78,18 @@ $qrImg = $scheme . '://' . $host . $base . '/generate_qr.php?hash=' . $hash;
             </div>
         </div>
 
+   <div class="col-md-6">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title">Kolay Menü</h5>
+                    <p class="card-text">Önceden hazırlanmış bir örnek menü üzerinden işlemlerinizi daha hızlı ve kolay yapabilirsiniz.</p>
+                    <a href="menu_tree.php" class="btn btn-primary">Kolay Menü Oluştur</a>
+                </div>
+            </div>
+        </div>
+
+        
+
  <div class="col-md-6">
             <div class="card text-center">
                 <div class="card-body">

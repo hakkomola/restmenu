@@ -105,8 +105,7 @@ body {
 
 <div class="container mt-4">
 <?php if (!$catId): ?>
-    <h1 class="mb-4 text-center"><?=$restaurantName?></h1>
-
+ 
     <!-- AD SENSE REKLAM -->
     <div class="my-4 text-center">
         <ins class="adsbygoogle"
@@ -118,6 +117,7 @@ body {
              (adsbygoogle = window.adsbygoogle || []).push({});
         </script>
     </div>
+   <h1 class="mb-4 text-center"><?=$restaurantName?></h1>
 
     <div class="row g-4">
         <?php foreach ($categories as $cat): ?>
