@@ -19,7 +19,6 @@ include __DIR__ . '/../includes/mainnavbar.php';
 <style>
 body { background: #f8f9fa; }
 
-/* Tree yapısı */
 .tree ul { list-style:none; margin:0; padding-left:1.2rem; border-left:1px solid #dee2e6; }
 .tree li { margin:6px 0; position:relative; }
 .tree li::before { content:""; position:absolute; top:0; left:-1.2rem; height:100%; border-left:1px solid #dee2e6; }
@@ -36,11 +35,10 @@ input[type="checkbox"] { width:16px; height:16px; accent-color:#0d6efd; }
 .collapsed > ul { display:none; }
 .collapsed > .node i.toggle { transform:rotate(-90deg); }
 
-/* Seviye iç boşlukları */
-.level1 > .node { padding-left:8px; font-weight:600; }      /* Ana Menü */
-.level2 > .node { padding-left:24px; }                     /* Kategori */
-.level3 > .node { padding-left:40px; }                     /* Alt Kategori */
-.level4 > .node { padding-left:56px; }                     /* Ürün */
+.level1 > .node { padding-left:8px; font-weight:600; }
+.level2 > .node { padding-left:24px; }
+.level3 > .node { padding-left:40px; }
+.level4 > .node { padding-left:56px; }
 </style>
 </head>
 <body>
@@ -65,17 +63,16 @@ input[type="checkbox"] { width:16px; height:16px; accent-color:#0d6efd; }
 function renderTree(data) {
     let html = '<ul>';
 
-    // 1. kırılım → Ana Menü
+    // Ana Menü (1. kırılım)
     html += `<li class="level1">
         <div class="node"><input type="checkbox" data-id="root" data-type="root"><i class="bi bi-house-door-fill"></i> Ana Menü</div>
         <ul>`;
 
-    // 2-3-4 kırılım → DB’den gelen data
     data.forEach(cat=>{
         const hasSubs = cat.subcategories?.length > 0;
         const toggleCat = hasSubs ? '<i class="bi bi-chevron-down toggle"></i>' : '<i class="bi bi-dot text-secondary"></i>';
         html += `<li class="level2 category">
-            <div class="node">${toggleCat}<input type="checkbox" data-id="${cat.id}" data-type="category"><i class="bi bi-folder2-open"></i> ${cat.name}</div>`;
+            <div class="node">${toggleCat}<input type="checkbox" data-id="${cat.id}" data-type="category" data-text="${cat.name}"><i class="bi bi-folder2-open"></i> ${cat.name}</div>`;
 
         if(hasSubs){
             html += '<ul>';
@@ -83,13 +80,13 @@ function renderTree(data) {
                 const hasItems = sub.items?.length>0;
                 const toggleSub = hasItems ? '<i class="bi bi-chevron-down toggle"></i>' : '<i class="bi bi-dot text-secondary"></i>';
                 html += `<li class="level3 subcategory">
-                    <div class="node">${toggleSub}<input type="checkbox" data-id="${sub.id}" data-type="subcategory"><i class="bi bi-folder"></i> ${sub.name}</div>`;
+                    <div class="node">${toggleSub}<input type="checkbox" data-id="${sub.id}" data-type="subcategory" data-parent-category="${cat.id}" data-text="${sub.name}"><i class="bi bi-folder"></i> ${sub.name}</div>`;
 
                 if(hasItems){
                     html += '<ul>';
                     sub.items.forEach(item=>{
                         html += `<li class="level4 item">
-                            <div class="node"><input type="checkbox" data-id="${item.id}" data-type="item"><i class="bi bi-file-earmark-text"></i> ${item.name}</div>
+                            <div class="node"><input type="checkbox" data-id="${item.id}" data-type="item" data-parent-category="${cat.id}" data-parent-sub="${sub.id}" data-text="${item.name}"><i class="bi bi-file-earmark-text"></i> ${item.name}</div>
                         </li>`;
                     });
                     html += '</ul>';
@@ -103,7 +100,7 @@ function renderTree(data) {
         html += '</li>';
     });
 
-    html += '</ul></li></ul>'; // Ana Menü li ve ul kapatma
+    html += '</ul></li></ul>';
     return html;
 }
 
@@ -112,57 +109,63 @@ $(function(){
         $('#treeContent').html(renderTree(data));
     });
 
-    // Toggle collapse/expand
     $('#menuTree').on('click', '.toggle', function(e){
         e.stopPropagation();
-        const $li = $(this).closest('li');
-        $li.toggleClass('collapsed');
+        $(this).closest('li').toggleClass('collapsed');
     });
 
-    // Ana Menü checkbox → tüm alt elemanlar seç/kaldır
-    $('#menuTree').on('change', 'input[data-type="root"]', function(){
-        const checked = $(this).prop('checked');
-        $('#menuTree input[type="checkbox"]').not(this).prop('checked', checked);
-    });
-
-    // Alt veya üst checkbox değişim mantığı
-    $('#menuTree').on('change', 'input[type="checkbox"]:not([data-type="root"])', function(){
+    $('#menuTree').on('change', 'input[type="checkbox"]', function(){
         const $this = $(this);
         const checked = $this.prop('checked');
-
-        // 1️⃣ Eğer üst seçildiyse → tüm alt checkbox’lar seç/kaldır
         const $li = $this.closest('li');
+
+        // Alt kırılımları seç/boşalt
         $li.find('ul input[type="checkbox"]').prop('checked', checked);
 
-        // 2️⃣ Direkt üst checkbox → DOM üzerinden parent li
-        const $parentLi = $this.closest('ul').closest('li');
-        const $parentCheckbox = $parentLi.children('.node').children('input[type="checkbox"]');
-        if(checked && $parentCheckbox.length){
-            $parentCheckbox.prop('checked', true);
+        // Üst kırılım kontrolü
+        let $parentLi = $this.closest('ul').closest('li');
+        while($parentLi.length){
+            const $parentCheckbox = $parentLi.children('.node').children('input[type="checkbox"]');
+            if($parentCheckbox.length){
+                if(checked){
+                    $parentCheckbox.prop('checked', true);
+                } else {
+                    const anyChecked = $parentLi.find('ul input[type="checkbox"]:checked').length>0;
+                    $parentCheckbox.prop('checked', anyChecked);
+                }
+            }
+            $parentLi = $parentLi.closest('ul').closest('li');
         }
 
-        // 3️⃣ Ana Menü checkbox durumu: tüm alt elemanlar seçiliyse seç
-        const allChecked = $('#menuTree input[type="checkbox"]:not([data-type="root"])').length ===
-                           $('#menuTree input[type="checkbox"]:not([data-type="root"])').filter(':checked').length;
-        $('input[data-type="root"]').prop('checked', allChecked);
+        // Ana Menü checkbox
+        const allChecked = $('#menuTree input[type="checkbox"]:not([data-id="root"])').length ===
+                           $('#menuTree input[type="checkbox"]:not([data-id="root"])').filter(':checked').length;
+        $('input[data-id="root"]').prop('checked', allChecked);
     });
 
-    // Kaydet butonu
-    $('#saveBtn').click(()=>{
-        const selected=[];
+    $('#saveBtn').click(function(){
+        let selected = [];
         $('#menuTree input:checked').each(function(){
-            selected.push({
-                id: $(this).data('id'),
-                type: $(this).data('type')
-            });
+            const id = $(this).data('id');
+            const type = $(this).data('type');
+            if(id !== 'root'){
+                selected.push({
+                    id: id,
+                    type: type,
+                    parentCategoryId: $(this).data('parent-category') || null,
+                    parentSubId: $(this).data('parent-sub') || null,
+                    text: $(this).data('text') || $(this).closest('.node').text().trim()
+                });
+            }
         });
+        console.log(selected); // Debug: JS tarafı kontrol
 
         $.ajax({
             url:'save_menu_selection.php',
             method:'POST',
             data:{ selections: JSON.stringify(selected) },
-            success: ()=>alert("Seçimler kaydedildi."),
-            error: ()=>alert("Kaydetme sırasında hata oluştu.")
+            success:function(res){ alert("Seçimler kaydedildi: " + res); },
+            error:function(xhr){ alert("Kaydetme sırasında hata: " + xhr.responseText); }
         });
     });
 });
