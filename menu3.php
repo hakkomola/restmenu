@@ -121,7 +121,7 @@ body {
 
     <div class="row g-4">
         <?php foreach ($categories as $cat): ?>
-            <div class="col-6 col-md-6 col-lg-6"> <!-- Mobil dahil tüm cihazlarda iki sütun -->
+            <div class="col-6 col-md-6 col-lg-6"> <!-- Ana kategoriler iki sütun -->
                 <a href="?hash=<?= htmlspecialchars($hash) ?>&cat=<?= $cat['CategoryID'] ?>" class="category-card">
                     <div class="card h-100 text-center">
                         <?php if($cat['ImageURL']): ?>
@@ -136,7 +136,6 @@ body {
         <?php endforeach; ?>
     </div>
 <?php else: ?>
-    <!-- Alt kategori ve item kodu aynı kalacak -->
     <h1 class="mb-4 text-center"><?= htmlspecialchars($category['CategoryName']) ?> Menüsü</h1>
 
     <?php if ($subcategories): ?>
@@ -158,7 +157,7 @@ body {
     <h3><?= htmlspecialchars($sub['SubCategoryName']) ?></h3>
     <div class="row g-4">
         <?php foreach ($itemsBySub[$sub['SubCategoryID']] as $item): ?>
-            <div class="col-12 col-md-6 col-lg-4">
+            <div class="col-6 col-md-6 col-lg-6"> <!-- Menü öğeleri iki sütun -->
                 <a href="menu_item.php?id=<?= $item['MenuItemID'] ?>&hash=<?= htmlspecialchars($hash) ?>" class="text-decoration-none text-dark">
                     <div class="card h-100">
                         <?php if (!empty($item['images'])): ?>
