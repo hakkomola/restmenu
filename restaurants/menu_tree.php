@@ -39,21 +39,26 @@ input[type="checkbox"] { width:16px; height:16px; accent-color:#0d6efd; }
 .level2 > .node { padding-left:24px; }
 .level3 > .node { padding-left:40px; }
 .level4 > .node { padding-left:56px; }
+
+/* Kaydet buton pozisyonu */
+#saveBtn { margin-bottom: 15px; }
 </style>
 </head>
 <body>
 <div class="container mt-4">
 <div class="card shadow-sm">
 <div class="card-body">
+
+<div class="d-flex justify-content-start mb-3">
+  <button id="saveBtn" class="btn btn-primary">Kaydet</button>
+</div>
+
 <h3 class="text-center mb-3">Restoran Menü Ağacı</h3>
 
 <div class="tree" id="menuTree">
   <div id="treeContent"></div>
 </div>
 
-<div class="text-center mt-3">
-  <button id="saveBtn" class="btn btn-primary">Kaydet</button>
-</div>
 </div>
 </div>
 </div>
@@ -63,7 +68,6 @@ input[type="checkbox"] { width:16px; height:16px; accent-color:#0d6efd; }
 function renderTree(data) {
     let html = '<ul>';
 
-    // Ana Menü (1. kırılım)
     html += `<li class="level1">
         <div class="node"><input type="checkbox" data-id="root" data-type="root"><i class="bi bi-house-door-fill"></i> Ana Menü</div>
         <ul>`;
@@ -119,10 +123,8 @@ $(function(){
         const checked = $this.prop('checked');
         const $li = $this.closest('li');
 
-        // Alt kırılımları seç/boşalt
         $li.find('ul input[type="checkbox"]').prop('checked', checked);
 
-        // Üst kırılım kontrolü
         let $parentLi = $this.closest('ul').closest('li');
         while($parentLi.length){
             const $parentCheckbox = $parentLi.children('.node').children('input[type="checkbox"]');
@@ -137,7 +139,6 @@ $(function(){
             $parentLi = $parentLi.closest('ul').closest('li');
         }
 
-        // Ana Menü checkbox
         const allChecked = $('#menuTree input[type="checkbox"]:not([data-id="root"])').length ===
                            $('#menuTree input[type="checkbox"]:not([data-id="root"])').filter(':checked').length;
         $('input[data-id="root"]').prop('checked', allChecked);
@@ -158,13 +159,15 @@ $(function(){
                 });
             }
         });
-        console.log(selected); // Debug: JS tarafı kontrol
 
         $.ajax({
             url:'save_menu_selection.php',
             method:'POST',
             data:{ selections: JSON.stringify(selected) },
-            success:function(res){ alert("Seçimler kaydedildi: " + res); },
+            success:function(res){
+                alert("Seçimler kaydedildi: " + res);
+                window.location.href = 'dashboard.php'; // Kaydetme sonrası yönlendirme
+            },
             error:function(xhr){ alert("Kaydetme sırasında hata: " + xhr.responseText); }
         });
     });
