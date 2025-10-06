@@ -153,8 +153,8 @@ body {
 .option-item span {
   font-size: 0.95rem;
   <?= $theme === 'dark'
-      ? 'color:#ffcc80;'   /* 🔸 turuncu ton – görünür */
-      : 'color:#333;' 
+      ? 'color:#ffcc80;'
+      : 'color:#333;'
   ?>
 }
 </style>
@@ -169,7 +169,7 @@ body {
     <h3><?= htmlspecialchars($item['MenuName']) ?></h3>
   </div>
 
-  <a href="javascript:history.back()" class="back-btn mb-3 d-inline-block">&larr; Geri Dön</a>
+  <a href="#" onclick="goBack()" class="back-btn mb-3 d-inline-block">&larr; Geri Dön</a>
 
   <div class="card">
     <?php if (!empty($images)): ?>
@@ -216,5 +216,22 @@ body {
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+function goBack() {
+  if (document.referrer && document.referrer !== window.location.href) {
+    history.back();
+  } else {
+    // Tarayıcı geçmişi yoksa ana menüye yönlendir
+    const params = new URLSearchParams(window.location.search);
+    const hash = params.get("hash");
+    const theme = params.get("theme") || "light";
+    if (hash) {
+      window.location.href = "menu.php?hash=" + hash + "&theme=" + theme;
+    } else {
+      window.location.href = "index.php";
+    }
+  }
+}
+</script>
 </body>
 </html>
