@@ -3,7 +3,7 @@ session_start();
 require_once __DIR__ . '/../db.php';
 error_reporting(E_ALL & ~E_WARNING);
 
-$sourceRestaurantId = 2;
+$sourceRestaurantId = 1;
 
 // Kategoriler
 $stmt = $pdo->prepare("SELECT CategoryID, CategoryName FROM MenuCategories WHERE RestaurantID=? ORDER BY SortOrder,CategoryName ASC");

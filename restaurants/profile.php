@@ -11,7 +11,6 @@ $restaurantId = $_SESSION['restaurant_id'];
 $message = '';
 $error = '';
 
-
 // Restoran bilgileri çek
 $stmt = $pdo->prepare("SELECT * FROM Restaurants WHERE RestaurantID = ?");
 $stmt->execute([$restaurantId]);
@@ -52,6 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['delete_main']) && !i
     $email      = trim($_POST['email'] ?? '');
     $phone      = trim($_POST['phone'] ?? '');
     $address    = trim($_POST['address'] ?? '');
+    $mapUrl     = trim($_POST['map_url'] ?? ''); // ✅ yeni eklendi
     $password   = $_POST['password'] ?? '';
 
     if ($name === '' || $email === '') {
@@ -97,9 +97,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['delete_main']) && !i
 
         if ($error === '') {
             $sql = "UPDATE Restaurants 
-                    SET Name=?, NameHTML=?, Email=?, Phone=?, Address=?, 
-                        MainImage=?, BackgroundImage=?";
-            $params = [$name, $nameHTML, $email, $phone, $address, $mainToSave, $bgToSave];
+                    SET Name=?, NameHTML=?, Email=?, Phone=?, Address=?, MapUrl=?, 
+                        MainImage=?, BackgroundImage=?"; // ✅ MapUrl eklendi
+            $params = [$name, $nameHTML, $email, $phone, $address, $mapUrl, $mainToSave, $bgToSave];
 
             if (!empty($password)) {
                 $sql .= ", PasswordHash = ?";
@@ -112,12 +112,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['delete_main']) && !i
             $pdo->prepare($sql)->execute($params);
             $_SESSION['restaurant_name'] = $name;
 
-            // 🔧 DÜZELTİLDİ: dashboard.php doğru klasöre yönlendiriliyor
             header('Location: ../restaurants/dashboard.php');
             exit;
         }
     }
 }
+
 include __DIR__ . '/../includes/navbar.php';
 
 if (isset($_GET['success'])) $message = 'İşlem başarıyla gerçekleştirildi.';
@@ -172,6 +172,15 @@ if (isset($_GET['success'])) $message = 'İşlem başarıyla gerçekleştirildi.
         <div class="mb-3">
             <label class="form-label">Adres</label>
             <textarea name="address" class="form-control" rows="3"><?= htmlspecialchars($restaurant['Address'] ?? '') ?></textarea>
+        </div>
+
+        <!-- ✅ Konum Linki eklendi -->
+        <div class="mb-3">
+            <label class="form-label">Konum Linki (Google Maps URL)</label>
+            <input type="text" name="map_url" class="form-control" 
+                   placeholder="https://goo.gl/maps/..." 
+                   value="<?= htmlspecialchars($restaurant['MapUrl'] ?? '') ?>">
+            <div class="form-text">Müşterilerin haritada sizi bulabilmesi için Google Maps bağlantısını ekleyin.</div>
         </div>
 
         <div class="mb-3">

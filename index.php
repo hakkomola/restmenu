@@ -129,7 +129,7 @@ if (isset($_SESSION['restaurant_id'])) {
     <div class="demo-card mx-auto" style="max-width: 500px;">
         <h4 class="card-title mb-3"><i class="bi bi-book"></i> Örnek Menü</h4>
         <p class="card-text mb-4">Vov Menu kullanılarak oluşturulmuş örnek menüyü inceleyebilirsiniz.</p>
-        <a href="menu.php?hash=c81e728d9d4c2f636f067f89cc14862c" class="btn btn-success btn-lg" target="_blank">Menüyü Gör</a>
+        <a href="restaurant_info.php?hash=c4ca4238a0b923820dcc509a6f75849b&theme=dark&lang=tr" class="btn btn-success btn-lg" target="_blank">Menüyü Gör</a>
     </div>
 </section>
 
