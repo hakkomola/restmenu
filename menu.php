@@ -3,7 +3,7 @@ require_once __DIR__ . '/db.php';
 
 $hash = $_GET['hash'] ?? null;
 $catId = $_GET['cat'] ?? null;
-$theme = $_GET['theme'] ?? 'light'; // Parametrik tema (light varsayılan)
+$theme = $_GET['theme'] ?? 'light';
 
 if (!$hash) die('Geçersiz link!');
 
@@ -75,13 +75,21 @@ body {
       : 'background-color:#f8f9fa;color:#333;'
   ?>
 }
-<?php if ($backgroundImage): ?>
-body {
-  background: url('<?= htmlspecialchars(ltrim($backgroundImage, '/')) ?>') no-repeat center center fixed;
-  background-size: cover;
+.page-header {
+  text-align: center;
+  margin-bottom: 25px;
+  padding-top: 10px;
 }
-<?php endif; ?>
-
+.page-header h1 {
+  font-size: clamp(22px, 5vw, 34px);
+  font-weight: 700;
+  margin-bottom: 5px;
+}
+.page-header h3 {
+  font-size: clamp(18px, 4vw, 26px);
+  opacity: 0.85;
+  font-weight: 500;
+}
 .card {
   border: none;
   border-radius: 12px;
@@ -137,7 +145,6 @@ body {
   color: <?= $theme === 'dark' ? '#000' : '#fff' ?>;
 }
 section { scroll-margin-top: 80px; }
-
 @media (max-width: 576px) {
   .category-grid {
     display: grid !important;
@@ -151,7 +158,9 @@ section { scroll-margin-top: 80px; }
 <body data-bs-spy="scroll" data-bs-target="#subcategoryNav" data-bs-offset="100" tabindex="0">
 
 <div class="container py-4">
+
 <?php if (!$catId): ?>
+  <!-- Ana Sayfa -->
   <h1 class="mb-4 text-center"><?= htmlspecialchars($restaurantName) ?></h1>
   <div class="row g-4 category-grid">
     <?php foreach ($categories as $cat): ?>
@@ -171,7 +180,11 @@ section { scroll-margin-top: 80px; }
   </div>
 
 <?php else: ?>
-  <h1 class="text-center mb-3"><?= htmlspecialchars($category['CategoryName']) ?> Menüsü</h1>
+  <!-- Kategori Sayfası -->
+  <div class="page-header">
+    <h1><?= htmlspecialchars($restaurantName) ?></h1>
+    <h3><?= htmlspecialchars($category['CategoryName']) ?></h3>
+  </div>
 
   <?php if ($subcategories): ?>
   <div id="subcategoryNav" class="subcategory-menu">
@@ -186,44 +199,44 @@ section { scroll-margin-top: 80px; }
     <section id="sub<?= $sub['SubCategoryID'] ?>" class="mt-4">
       <h3 class="mb-3"><?= htmlspecialchars($sub['SubCategoryName']) ?></h3>
       <div class="row g-4">
-<?php foreach ($itemsBySub[$sub['SubCategoryID']] as $item): ?>
-  <div class="col-12 col-md-6 col-lg-4">
-    <a href="menu_item.php?id=<?= $item['MenuItemID'] ?>&hash=<?= htmlspecialchars($hash) ?>&theme=<?= $theme ?>" class="text-decoration-none <?= $theme === 'dark' ? 'text-light' : 'text-dark' ?>">
-      <div class="card h-100">
-        <?php if (!empty($item['images'])): ?>
-          <div id="carousel<?= $item['MenuItemID'] ?>" class="carousel slide" data-bs-ride="carousel">
-            <div class="carousel-inner">
-              <?php foreach ($item['images'] as $i => $img): ?>
-                <div class="carousel-item <?= $i === 0 ? 'active' : '' ?>">
-                  <img src="<?= htmlspecialchars($img['ImageURL']) ?>" class="d-block w-100 menu-img" alt="Menü Görseli">
+        <?php foreach ($itemsBySub[$sub['SubCategoryID']] as $item): ?>
+          <div class="col-12 col-md-6 col-lg-4">
+            <a href="menu_item.php?id=<?= $item['MenuItemID'] ?>&hash=<?= htmlspecialchars($hash) ?>&theme=<?= $theme ?>" class="text-decoration-none <?= $theme === 'dark' ? 'text-light' : 'text-dark' ?>">
+              <div class="card h-100">
+                <?php if (!empty($item['images'])): ?>
+                  <div id="carousel<?= $item['MenuItemID'] ?>" class="carousel slide" data-bs-ride="carousel">
+                    <div class="carousel-inner">
+                      <?php foreach ($item['images'] as $i => $img): ?>
+                        <div class="carousel-item <?= $i === 0 ? 'active' : '' ?>">
+                          <img src="<?= htmlspecialchars($img['ImageURL']) ?>" class="d-block w-100 menu-img" alt="Menü Görseli">
+                        </div>
+                      <?php endforeach; ?>
+                    </div>
+                    <?php if (count($item['images']) > 1): ?>
+                      <button class="carousel-control-prev" type="button" data-bs-target="#carousel<?= $item['MenuItemID'] ?>" data-bs-slide="prev">
+                        <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                      </button>
+                      <button class="carousel-control-next" type="button" data-bs-target="#carousel<?= $item['MenuItemID'] ?>" data-bs-slide="next">
+                        <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                      </button>
+                    <?php endif; ?>
+                  </div>
+                <?php endif; ?>
+                <div class="card-body">
+                  <h5 class="card-title"><?= htmlspecialchars($item['MenuName']) ?></h5>
+                  <p class="card-text"><?= htmlspecialchars($item['Description']) ?></p>
+                  <p class="price"><?= number_format($item['Price'], 2) ?> ₺</p>
                 </div>
-              <?php endforeach; ?>
-            </div>
-            <?php if (count($item['images']) > 1): ?>
-              <button class="carousel-control-prev" type="button" data-bs-target="#carousel<?= $item['MenuItemID'] ?>" data-bs-slide="prev">
-                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
-              </button>
-              <button class="carousel-control-next" type="button" data-bs-target="#carousel<?= $item['MenuItemID'] ?>" data-bs-slide="next">
-                <span class="carousel-control-next-icon" aria-hidden="true"></span>
-              </button>
-            <?php endif; ?>
+              </div>
+            </a>
           </div>
-        <?php endif; ?>
-        <div class="card-body">
-          <h5 class="card-title"><?= htmlspecialchars($item['MenuName']) ?></h5>
-          <p class="card-text"><?= htmlspecialchars($item['Description']) ?></p>
-          <p class="price"><?= number_format($item['Price'], 2) ?> ₺</p>
-        </div>
-      </div>
-    </a>
-  </div>
-<?php endforeach; ?>
+        <?php endforeach; ?>
       </div>
     </section>
   <?php endforeach; ?>
 <?php endif; ?>
-</div>
 
+</div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 const scrollSpy = new bootstrap.ScrollSpy(document.body, { target: '#subcategoryNav', offset: 100 });

@@ -62,6 +62,21 @@ body {
 .container {
   max-width: 700px;
 }
+.page-header {
+  text-align: center;
+  margin-bottom: 20px;
+  padding-top: 10px;
+}
+.page-header h1 {
+  font-size: clamp(22px, 5vw, 34px);
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.page-header h3 {
+  font-size: clamp(18px, 4vw, 26px);
+  opacity: 0.85;
+  font-weight: 500;
+}
 .card {
   border: none;
   border-radius: 12px;
@@ -119,6 +134,13 @@ body {
 <body>
 
 <div class="container my-4">
+
+  <!-- Üst Bilgi (Restoran ve Ürün Adı) -->
+  <div class="page-header">
+    <h1><?= htmlspecialchars($restaurantName) ?></h1>
+    <h3><?= htmlspecialchars($item['MenuName']) ?></h3>
+  </div>
+
   <a href="javascript:history.back()" class="back-btn mb-3 d-inline-block">&larr; Geri Dön</a>
 
   <div class="card">
@@ -143,7 +165,6 @@ body {
     <?php endif; ?>
 
     <div class="card-body">
-      <h3><?= htmlspecialchars($item['MenuName']) ?></h3>
       <?php if (!empty($item['Description'])): ?>
         <p class="mt-2"><?= nl2br(htmlspecialchars($item['Description'])) ?></p>
       <?php endif; ?>

@@ -23,19 +23,31 @@ if (!$restaurant) {
     exit;
 }
 
-// Arka plan resmi silme
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_background'])) {
-    if (!empty($restaurant['BackgroundImage'])) {
-        $oldPath = __DIR__ . '/../' . ltrim($restaurant['BackgroundImage'], '/');
-        if (file_exists($oldPath)) @unlink($oldPath);
+// Her iki resim için ayrı silme işlemleri
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (isset($_POST['delete_main'])) {
+        if (!empty($restaurant['MainImage'])) {
+            $oldPath = __DIR__ . '/../' . ltrim($restaurant['MainImage'], '/');
+            if (file_exists($oldPath)) @unlink($oldPath);
+        }
+        $pdo->prepare("UPDATE Restaurants SET MainImage = NULL WHERE RestaurantID = ?")->execute([$restaurantId]);
+        header('Location: profile.php?success=1');
+        exit;
     }
-    $pdo->prepare("UPDATE Restaurants SET BackgroundImage = NULL WHERE RestaurantID = ?")->execute([$restaurantId]);
-    header('Location: profile.php?success=1');
-    exit;
+
+    if (isset($_POST['delete_background'])) {
+        if (!empty($restaurant['BackgroundImage'])) {
+            $oldPath = __DIR__ . '/../' . ltrim($restaurant['BackgroundImage'], '/');
+            if (file_exists($oldPath)) @unlink($oldPath);
+        }
+        $pdo->prepare("UPDATE Restaurants SET BackgroundImage = NULL WHERE RestaurantID = ?")->execute([$restaurantId]);
+        header('Location: profile.php?success=1');
+        exit;
+    }
 }
 
 // Güncelleme işlemi
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['delete_background'])) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['delete_main']) && !isset($_POST['delete_background'])) {
     $name       = trim($_POST['name'] ?? '');
     $nameHTML   = trim($_POST['name_html'] ?? '');
     $email      = trim($_POST['email'] ?? '');
@@ -47,16 +59,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['delete_background'])
         $error = 'İsim ve e-posta zorunludur.';
     } else {
         $bgToSave = $restaurant['BackgroundImage'];
+        $mainToSave = $restaurant['MainImage'];
+
+        $uploadsDir = __DIR__ . '/../uploads/';
+        if (!is_dir($uploadsDir)) mkdir($uploadsDir, 0777, true);
+
+        // Ana görsel yükleme
+        if (!empty($_FILES['main_image']['name'])) {
+            $safeName = preg_replace('/[^A-Za-z0-9_\-\.]/', '_', basename($_FILES['main_image']['name']));
+            $fileName = 'main_' . time() . '_' . $safeName;
+            $target = $uploadsDir . $fileName;
+            if (move_uploaded_file($_FILES['main_image']['tmp_name'], $target)) {
+                if (!empty($restaurant['MainImage'])) {
+                    $oldPath = __DIR__ . '/../' . ltrim($restaurant['MainImage'], '/');
+                    if (file_exists($oldPath)) @unlink($oldPath);
+                }
+                $mainToSave = 'uploads/' . $fileName;
+            } else {
+                $error = 'Ana görsel yüklenemedi.';
+            }
+        }
 
         // Arka plan yükleme
         if (!empty($_FILES['bg_image']['name'])) {
-            $uploadsDir = __DIR__ . '/../uploads/';
-            if (!is_dir($uploadsDir)) mkdir($uploadsDir, 0777, true);
-
             $safeName = preg_replace('/[^A-Za-z0-9_\-\.]/', '_', basename($_FILES['bg_image']['name']));
-            $fileName = time() . '_' . $safeName;
+            $fileName = 'bg_' . time() . '_' . $safeName;
             $target = $uploadsDir . $fileName;
-
             if (move_uploaded_file($_FILES['bg_image']['tmp_name'], $target)) {
                 if (!empty($restaurant['BackgroundImage'])) {
                     $oldPath = __DIR__ . '/../' . ltrim($restaurant['BackgroundImage'], '/');
@@ -64,14 +92,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['delete_background'])
                 }
                 $bgToSave = 'uploads/' . $fileName;
             } else {
-                $error = 'Arka plan yüklenirken hata oluştu.';
+                $error = 'Arka plan yüklenemedi.';
             }
         }
 
         if ($error === '') {
             $sql = "UPDATE Restaurants 
-                    SET Name = ?, NameHTML = ?, Email = ?, Phone = ?, Address = ?, BackgroundImage = ?";
-            $params = [$name, $nameHTML, $email, $phone, $address, $bgToSave];
+                    SET Name=?, NameHTML=?, Email=?, Phone=?, Address=?, 
+                        MainImage=?, BackgroundImage=?";
+            $params = [$name, $nameHTML, $email, $phone, $address, $mainToSave, $bgToSave];
 
             if (!empty($password)) {
                 $sql .= ", PasswordHash = ?";
@@ -81,9 +110,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['delete_background'])
             $sql .= " WHERE RestaurantID = ?";
             $params[] = $restaurantId;
 
-            $upd = $pdo->prepare($sql);
-            $upd->execute($params);
-
+            $pdo->prepare($sql)->execute($params);
             $_SESSION['restaurant_name'] = $name;
             header('Location: dashboard.php');
             exit;
@@ -91,9 +118,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['delete_background'])
     }
 }
 
-if (isset($_GET['success'])) {
-    $message = 'İşlem başarıyla gerçekleştirildi.';
-}
+if (isset($_GET['success'])) $message = 'İşlem başarıyla gerçekleştirildi.';
 ?>
 <!DOCTYPE html>
 <html lang="tr">
@@ -117,19 +142,17 @@ if (isset($_GET['success'])) {
 
     <form method="post" enctype="multipart/form-data">
 
-        <!-- Normal Restoran Adı -->
         <div class="mb-3">
             <label class="form-label">Restoran Adı</label>
             <input type="text" name="name" class="form-control" 
                    value="<?= htmlspecialchars($restaurant['Name'] ?? '') ?>" required>
         </div>
 
-        <!-- HTML Başlık -->
         <div class="mb-3">
             <label class="form-label">Restoran Adı (HTML Başlık - isteğe bağlı)</label>
             <textarea name="name_html" class="form-control" rows="3"
                       placeholder="<h1>Portside</h1><div>Food - Drink - More</div>"><?= htmlspecialchars($restaurant['NameHTML'] ?? '') ?></textarea>
-            <div class="form-text">Bu alanı doldurursan <strong>restaurant_info.php</strong> sayfasında bu HTML gösterilir.</div>
+            <div class="form-text">Bu alan doldurulursa restaurant_info.php'de HTML render edilir.</div>
         </div>
 
         <div class="mb-3">
@@ -156,22 +179,40 @@ if (isset($_GET['success'])) {
 
         <hr>
 
-        <!-- Arka Plan Resmi -->
+        <!-- Ana Görsel -->
         <div class="mb-3">
-            <label class="form-label">Arka Plan Resmi</label><br>
+            <label class="form-label">Restoran Ana Görsel / Logo</label>
+            <?php if (!empty($restaurant['MainImage'])): ?>
+                <div class="mb-2">
+                    <img src="../<?= htmlspecialchars(ltrim($restaurant['MainImage'], '/')) ?>" 
+                         alt="Ana Görsel" style="max-width:300px; border:1px solid #ccc; border-radius:6px;">
+                </div>
+                <button type="submit" name="delete_main" value="1"
+                        class="btn btn-danger mb-2"
+                        onclick="return confirm('Ana görseli silmek istiyor musunuz?')">
+                    Ana Görseli Sil
+                </button>
+            <?php endif; ?>
+            <input type="file" name="main_image" class="form-control mt-2" accept="image/*">
+            <div class="form-text">Yeni bir ana görsel seçersen eski silinir.</div>
+        </div>
+
+        <!-- Arka Plan Görseli -->
+        <div class="mb-3">
+            <label class="form-label">Restoran Arka Plan Görseli</label>
             <?php if (!empty($restaurant['BackgroundImage'])): ?>
                 <div class="mb-2">
                     <img src="../<?= htmlspecialchars(ltrim($restaurant['BackgroundImage'], '/')) ?>" 
-                         alt="Background" style="max-width:300px; border:1px solid #ccc;">
+                         alt="Arka Plan" style="max-width:300px; border:1px solid #ccc; border-radius:6px;">
                 </div>
-                <form method="post" style="display:inline-block;">
-                    <input type="hidden" name="delete_background" value="1">
-                    <button type="submit" class="btn btn-danger mb-2" 
-                            onclick="return confirm('Arka plan resmini silmek istiyor musunuz?')">Arka Planı Sil</button>
-                </form>
+                <button type="submit" name="delete_background" value="1"
+                        class="btn btn-danger mb-2"
+                        onclick="return confirm('Arka plan resmini silmek istiyor musunuz?')">
+                    Arka Planı Sil
+                </button>
             <?php endif; ?>
             <input type="file" name="bg_image" class="form-control mt-2" accept="image/*">
-            <div class="form-text">Yeni bir resim seçersen eski resim silinir.</div>
+            <div class="form-text">Yeni bir arka plan resmi seçersen eski otomatik silinir.</div>
         </div>
 
         <div class="mt-4">
