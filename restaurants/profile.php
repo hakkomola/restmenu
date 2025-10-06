@@ -11,7 +11,6 @@ $restaurantId = $_SESSION['restaurant_id'];
 $message = '';
 $error = '';
 
-include __DIR__ . '/../includes/navbar.php';
 
 // Restoran bilgileri çek
 $stmt = $pdo->prepare("SELECT * FROM Restaurants WHERE RestaurantID = ?");
@@ -112,11 +111,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['delete_main']) && !i
 
             $pdo->prepare($sql)->execute($params);
             $_SESSION['restaurant_name'] = $name;
-            header('Location: dashboard.php');
+
+            // 🔧 DÜZELTİLDİ: dashboard.php doğru klasöre yönlendiriliyor
+            header('Location: ../restaurants/dashboard.php');
             exit;
         }
     }
 }
+include __DIR__ . '/../includes/navbar.php';
 
 if (isset($_GET['success'])) $message = 'İşlem başarıyla gerçekleştirildi.';
 ?>
