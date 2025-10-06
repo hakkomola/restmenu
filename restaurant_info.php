@@ -92,7 +92,7 @@ body {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  <?= $theme === 'dark' ? 'filter:brightness(0.6);' : 'filter:brightness(0.85);' ?>
+  <?= $theme === 'dark' ? 'filter:brightness(0.9);' : 'filter:brightness(0.95);' ?> /* 🔆 Daha açık hale getirildi */
 }
 .hero-overlay {
   position: absolute;
@@ -100,9 +100,9 @@ body {
   width: 100%; height: 100%;
   display: flex; flex-direction: column;
   justify-content: center; align-items: center;
-  background: rgba(0, 0, 0, 0.35);
+  background: rgba(0, 0, 0, 0.2); /* 🔆 Eskiden 0.35 idi — şimdi daha açık */
   color: #fff;
-  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
 }
 .hero-overlay h1 {
   margin: 0;
