@@ -9,7 +9,6 @@ if (!isset($_SESSION['restaurant_id'])) {
 }
 
 $restaurantId = $_SESSION['restaurant_id'];
-
 $id = $_GET['id'] ?? null;
 if (!$id) {
     header("Location: list.php");
@@ -25,12 +24,17 @@ if (!$item) {
     exit;
 }
 
-// Ana kategorileri getir
+// Menü seçeneklerini getir
+$optStmt = $pdo->prepare("SELECT * FROM MenuItemOptions WHERE MenuItemID = ? ORDER BY SortOrder, OptionName");
+$optStmt->execute([$id]);
+$options = $optStmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Ana kategoriler
 $catStmt = $pdo->prepare("SELECT * FROM MenuCategories WHERE RestaurantID = ? ORDER BY CategoryName ASC");
 $catStmt->execute([$restaurantId]);
 $categories = $catStmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Her ana kategoriye ait alt kategorileri bir diziye al
+// Alt kategoriler
 $subCategoriesMap = [];
 foreach ($categories as $cat) {
     $subStmt = $pdo->prepare("SELECT * FROM SubCategories WHERE CategoryID = ? ORDER BY SubCategoryName ASC");
@@ -38,7 +42,7 @@ foreach ($categories as $cat) {
     $subCategoriesMap[$cat['CategoryID']] = $subStmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
-// Seçili alt kategoriye göre seçili ana kategori belirle
+// Seçili kategori belirleme
 $selectedSubCategoryId = $item['SubCategoryID'] ?? null;
 $selectedCategoryId = null;
 if ($selectedSubCategoryId) {
@@ -59,16 +63,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $description = $_POST['description'] ?? '';
     $price = $_POST['price'] ?? 0;
     $subCategoryId = $_POST['sub_category_id'] ?? null;
+    $options = $_POST['options'] ?? [];
 
     if (!$subCategoryId) {
         $message = 'Lütfen bir alt kategori seçin.';
     }
 
     if (!$message) {
+        // Menü item güncelle
         $update = $pdo->prepare("UPDATE MenuItems SET SubCategoryID=?, MenuName=?, Description=?, Price=? WHERE MenuItemID=? AND RestaurantID=?");
         $update->execute([$subCategoryId, $name, $description, $price, $id, $restaurantId]);
 
-        // Yeni resimleri kaydet
+        // Mevcut seçenekleri silip yeniden ekle
+        $pdo->prepare("DELETE FROM MenuItemOptions WHERE MenuItemID=?")->execute([$id]);
+        if (!empty($options['name'])) {
+            $optInsert = $pdo->prepare("INSERT INTO MenuItemOptions (MenuItemID, OptionName, Price, SortOrder) VALUES (?, ?, ?, ?)");
+            foreach ($options['name'] as $i => $optName) {
+                $optName = trim($optName);
+                $optPrice = floatval($options['price'][$i] ?? 0);
+                if ($optName !== '') {
+                    $optInsert->execute([$id, $optName, $optPrice, $i]);
+                }
+            }
+        }
+
+        // Yeni resimleri ekle
         if (!empty($_FILES['images']['name'][0])) {
             $uploadsDir = __DIR__ . '/../uploads/';
             if (!is_dir($uploadsDir)) mkdir($uploadsDir, 0777, true);
@@ -90,15 +109,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Mevcut resimleri getir
+// Görseller
 $imgStmt = $pdo->prepare("SELECT * FROM MenuImages WHERE MenuItemID=?");
 $imgStmt->execute([$id]);
 $images = $imgStmt->fetchAll(PDO::FETCH_ASSOC);
 
 include __DIR__ . '/../includes/navbar.php';
-
 ?>
-
 <!DOCTYPE html>
 <html lang="tr">
 <head>
@@ -111,6 +128,8 @@ include __DIR__ . '/../includes/navbar.php';
 .img-container .img-box { position:relative; width:100px; }
 .img-container .img-box img { width:100%; height:100px; object-fit:cover; border-radius:5px; }
 .img-container .img-box .remove-btn { position:absolute; top:0; right:0; background:red; color:white; border:none; border-radius:50%; width:20px; height:20px; text-align:center; line-height:18px; cursor:pointer; }
+.option-row { display:flex; gap:10px; margin-bottom:8px; }
+.option-row input { flex:1; }
 </style>
 </head>
 <body>
@@ -133,8 +152,24 @@ include __DIR__ . '/../includes/navbar.php';
         </div>
 
         <div class="mb-3">
-            <label>Fiyat (₺)</label>
-            <input type="number" step="0.01" name="price" class="form-control" value="<?= htmlspecialchars($item['Price']) ?>" required>
+            <label>Varsayılan Fiyat (₺)</label>
+            <input type="number" step="0.01" name="price" class="form-control" value="<?= htmlspecialchars($item['Price']) ?>">
+            <div class="form-text">Bu fiyat seçenek belirtilmediğinde geçerlidir.</div>
+        </div>
+
+        <!-- 🔸 Seçenekler -->
+        <div class="mb-3">
+            <label>Farklı Seçenekler</label>
+            <div id="optionsContainer">
+                <?php foreach($options as $opt): ?>
+                    <div class="option-row">
+                        <input type="text" name="options[name][]" value="<?= htmlspecialchars($opt['OptionName']) ?>" class="form-control" placeholder="Seçenek adı">
+                        <input type="number" step="0.01" name="options[price][]" value="<?= htmlspecialchars($opt['Price']) ?>" class="form-control" placeholder="Fiyat">
+                        <button type="button" class="btn btn-outline-danger removeOptionBtn">×</button>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-primary mt-2" id="addOptionBtn">+ Yeni Seçenek Ekle</button>
         </div>
 
         <div class="mb-3">
@@ -164,7 +199,7 @@ include __DIR__ . '/../includes/navbar.php';
             </select>
         </div>
 
-        <!-- Mevcut ve yeni resimler -->
+        <!-- Görseller -->
         <div class="mb-3">
             <label>Resimler</label>
             <div class="img-container" id="imageContainer">
@@ -204,19 +239,34 @@ $(function(){
         $('#subCategorySelect').html(html);
     });
 
-    // Yeni resim seçildiğinde hemen preview
+    // Yeni seçenek ekleme
+    $('#addOptionBtn').click(function(){
+        const optionHtml = `
+            <div class="option-row">
+                <input type="text" name="options[name][]" class="form-control" placeholder="Seçenek adı">
+                <input type="number" step="0.01" name="options[price][]" class="form-control" placeholder="Fiyat">
+                <button type="button" class="btn btn-outline-danger removeOptionBtn">×</button>
+            </div>`;
+        $('#optionsContainer').append(optionHtml);
+    });
+
+    // Seçenek silme
+    $(document).on('click', '.removeOptionBtn', function(){
+        $(this).closest('.option-row').remove();
+    });
+
+    // Yeni resim önizleme
     $('#newImages').on('change', function(){
         const container = $('#imageContainer');
         const files = this.files;
         for(let i=0; i<files.length; i++){
-            const file = files[i];
             const reader = new FileReader();
             reader.onload = function(e){
                 const imgBox = $('<div class="img-box"></div>');
                 imgBox.append('<img src="'+e.target.result+'">');
                 container.append(imgBox);
             }
-            reader.readAsDataURL(file);
+            reader.readAsDataURL(files[i]);
         }
     });
 });

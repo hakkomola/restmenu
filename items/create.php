@@ -25,10 +25,11 @@ foreach ($categories as $cat) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $name = $_POST['name'] ?? '';
+    $name = trim($_POST['name'] ?? '');
     $description = $_POST['description'] ?? '';
     $price = $_POST['price'] ?? 0;
     $subCategoryId = $_POST['sub_category_id'] ?? null;
+    $options = $_POST['options'] ?? []; // Yeni: seçenekler (OptionName / Price)
 
     if (!$subCategoryId) {
         $message = 'Lütfen bir alt kategori seçin.';
@@ -39,6 +40,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt = $pdo->prepare('INSERT INTO MenuItems (SubCategoryID, RestaurantID, MenuName, Description, Price) VALUES (?, ?, ?, ?, ?)');
         $stmt->execute([$subCategoryId, $restaurantId, $name, $description, $price]);
         $menuItemId = $pdo->lastInsertId();
+
+        // Seçenekleri kaydet
+        if (!empty($options['name'])) {
+            $optStmt = $pdo->prepare('INSERT INTO MenuItemOptions (MenuItemID, OptionName, Price, SortOrder) VALUES (?, ?, ?, ?)');
+            foreach ($options['name'] as $i => $optName) {
+                $optName = trim($optName);
+                $optPrice = floatval($options['price'][$i] ?? 0);
+                if ($optName !== '') {
+                    $optStmt->execute([$menuItemId, $optName, $optPrice, $i]);
+                }
+            }
+        }
 
         // Eğer resim yüklendiyse kaydet
         if (!empty($_FILES['images']['name'][0])) {
@@ -62,7 +75,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 include __DIR__ . '/../includes/navbar.php';
-
 ?>
 
 <!DOCTYPE html>
@@ -72,6 +84,10 @@ include __DIR__ . '/../includes/navbar.php';
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Yeni Menü Öğesi Ekle</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<style>
+.option-row { display: flex; gap: 10px; margin-bottom: 8px; }
+.option-row input { flex: 1; }
+</style>
 </head>
 <body>
 <div class="container mt-5" style="max-width: 700px;">
@@ -86,13 +102,23 @@ include __DIR__ . '/../includes/navbar.php';
             <label>Menü Adı</label>
             <input type="text" name="name" class="form-control" required>
         </div>
+
         <div class="mb-3">
             <label>Açıklama</label>
             <textarea name="description" class="form-control"></textarea>
         </div>
+
         <div class="mb-3">
-            <label>Fiyat (₺)</label>
-            <input type="number" step="0.01" name="price" class="form-control" required>
+            <label>Varsayılan Fiyat (₺)</label>
+            <input type="number" step="0.01" name="price" class="form-control">
+            <div class="form-text">Bu fiyat seçenek belirtilmediğinde geçerlidir.</div>
+        </div>
+
+        <!-- 🔸 Seçenekler -->
+        <div class="mb-3">
+            <label>Farklı Seçenekler (örnek: 33cl / 70cl veya 1 porsiyon / 1,5 porsiyon)</label>
+            <div id="optionsContainer"></div>
+            <button type="button" class="btn btn-sm btn-outline-primary mt-2" id="addOptionBtn">+ Yeni Seçenek Ekle</button>
         </div>
 
         <!-- Ana kategori seçimi -->
@@ -138,6 +164,22 @@ $(function(){
             });
         }
         $('#subCategorySelect').html(html);
+    });
+
+    // 🔹 Dinamik seçenek ekleme
+    $('#addOptionBtn').click(function(){
+        const optionHtml = `
+            <div class="option-row">
+                <input type="text" name="options[name][]" class="form-control" placeholder="Seçenek adı (örnek: 1 Porsiyon)">
+                <input type="number" step="0.01" name="options[price][]" class="form-control" placeholder="Fiyat (₺)">
+                <button type="button" class="btn btn-outline-danger removeOptionBtn">×</button>
+            </div>`;
+        $('#optionsContainer').append(optionHtml);
+    });
+
+    // 🔹 Seçenek silme
+    $(document).on('click', '.removeOptionBtn', function(){
+        $(this).closest('.option-row').remove();
     });
 });
 </script>

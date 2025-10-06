@@ -3,7 +3,7 @@ require_once __DIR__ . '/db.php';
 
 $hash = $_GET['hash'] ?? null;
 $itemId = $_GET['id'] ?? null;
-$theme = $_GET['theme'] ?? 'light'; // varsayılan: açık tema
+$theme = $_GET['theme'] ?? 'light';
 
 if (!$hash || !$itemId) die('Geçersiz link!');
 
@@ -26,7 +26,6 @@ $stmt = $pdo->prepare("
 ");
 $stmt->execute([$itemId, $restaurantId]);
 $item = $stmt->fetch();
-
 if (!$item) die('Ürün bulunamadı!');
 
 // Görseller
@@ -34,6 +33,12 @@ $stmt2 = $pdo->prepare("SELECT * FROM MenuImages WHERE MenuItemID = ?");
 $stmt2->execute([$itemId]);
 $images = $stmt2->fetchAll();
 
+// Seçenekler
+$stmt3 = $pdo->prepare("SELECT * FROM MenuItemOptions WHERE MenuItemID = ? ORDER BY SortOrder, OptionName");
+$stmt3->execute([$itemId]);
+$options = $stmt3->fetchAll();
+
+// Görsel yollarını düzelt
 $fixedImages = [];
 foreach ($images as $img) {
     $url = ltrim($img['ImageURL'], '/');
@@ -59,9 +64,7 @@ body {
       : 'background-color:#f8f9fa;color:#222;'
   ?>
 }
-.container {
-  max-width: 700px;
-}
+.container { max-width: 700px; }
 .page-header {
   text-align: center;
   margin-bottom: 20px;
@@ -107,9 +110,7 @@ body {
 .carousel-control-next-icon:hover {
   background-color: <?= $theme === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)' ?>;
 }
-.card-body {
-  padding: 20px;
-}
+.card-body { padding: 20px; }
 .card-body h3 {
   color: <?= $theme === 'dark' ? '#ffffff' : '#222' ?>;
   font-weight: 600;
@@ -129,13 +130,40 @@ body {
   color: <?= $theme === 'dark' ? '#ff9800' : '#007bff' ?>;
 }
 .back-btn:hover { text-decoration: underline; }
+
+/* 🔸 Seçenekler Alanı */
+.option-list {
+  margin-top: 20px;
+  border-top: 1px solid <?= $theme === 'dark' ? '#333' : '#ddd' ?>;
+  padding-top: 15px;
+}
+.option-list h4 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 10px;
+  color: <?= $theme === 'dark' ? '#ff9800' : '#007bff' ?>;
+}
+.option-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px dashed <?= $theme === 'dark' ? '#444' : '#ccc' ?>;
+}
+.option-item:last-child { border-bottom: none; }
+.option-item span {
+  font-size: 0.95rem;
+  <?= $theme === 'dark'
+      ? 'color:#ffcc80;'   /* 🔸 turuncu ton – görünür */
+      : 'color:#333;' 
+  ?>
+}
 </style>
 </head>
 <body>
 
 <div class="container my-4">
 
-  <!-- Üst Bilgi (Restoran ve Ürün Adı) -->
+  <!-- Üst Bilgi -->
   <div class="page-header">
     <h1><?= htmlspecialchars($restaurantName) ?></h1>
     <h3><?= htmlspecialchars($item['MenuName']) ?></h3>
@@ -168,9 +196,21 @@ body {
       <?php if (!empty($item['Description'])): ?>
         <p class="mt-2"><?= nl2br(htmlspecialchars($item['Description'])) ?></p>
       <?php endif; ?>
-      <p class="price mt-3" style="color: <?= $theme === 'dark' ? '#ff9800' : '#007bff' ?> !important;">
-        <?= number_format($item['Price'], 2) ?> ₺
-      </p>
+
+      <p class="price mt-3"><?= number_format($item['Price'], 2) ?> ₺</p>
+
+      <!-- 🔸 Seçenekler -->
+      <?php if (!empty($options)): ?>
+        <div class="option-list">
+          <h4>Seçenekler</h4>
+          <?php foreach ($options as $opt): ?>
+            <div class="option-item">
+              <span><?= htmlspecialchars($opt['OptionName']) ?></span>
+              <span><?= number_format($opt['Price'], 2) ?> ₺</span>
+            </div>
+          <?php endforeach; ?>
+        </div>
+      <?php endif; ?>
     </div>
   </div>
 </div>
