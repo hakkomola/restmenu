@@ -18,11 +18,11 @@ $host = $_SERVER['HTTP_HOST'];
 $base = str_replace('/restaurants','', rtrim(dirname($_SERVER['SCRIPT_NAME']), '/\\')); // /restmenu
 
 // menu.php
-$menuLink = $scheme . '://' . $host . $base . '/menu.php?hash=' . $hash;
+$menuLink = $scheme . '://' . $host . $base . '/menu.php?hash=' . $hash . '&theme=light';
 $qrImg = $scheme . '://' . $host . $base . '/generate_qr.php?hash=' . $hash;
 
 // menu2.php
-$menu2Link = $scheme . '://' . $host . $base . '/menu2.php?hash=' . $hash;
+$menu2Link = $scheme . '://' . $host . $base . '/menu.php?hash=' . $hash . '&theme=dark';
 $qr2Img = $scheme . '://' . $host . $base . '/generate_qr.php?hash=' . $hash . '&menu=2';
 
 // menu3.php
@@ -50,8 +50,8 @@ $qr3Img = $scheme . '://' . $host . $base . '/generate_qr.php?hash=' . $hash . '
         <div class="col-12 col-md-4">
             <div class="card h-100">
                 <div class="card-body">
-                    <p>Menünüze herkesin erişebilmesi için:</p>
-                    <a href="<?= htmlspecialchars($menuLink) ?>" target="_blank" class="btn btn-outline-primary mb-2">Menu Aç</a>
+                    <p>Light Görünüm. Ekranda her satırda iki resim olacak şekilde görünür, alt kategoriler tek resim olarak görünür denemek için Menüyü Göster butonuna tıklayabilirsiniz.</p>
+                    <a href="<?= htmlspecialchars($menuLink) ?>" target="_blank" class="btn btn-outline-primary mb-2">Menüyü Göster</a>
                     <div>
                         <img src="<?= htmlspecialchars($qrImg) ?>" class="qr-img" alt="QR Kod">
                     </div>
@@ -64,8 +64,8 @@ $qr3Img = $scheme . '://' . $host . $base . '/generate_qr.php?hash=' . $hash . '
         <div class="col-12 col-md-4">
             <div class="card h-100">
                 <div class="card-body">
-                    <p>Menu2’ye erişim için:</p>
-                    <a href="<?= htmlspecialchars($menu2Link) ?>" target="_blank" class="btn btn-outline-primary mb-2">Menu2 Aç</a>
+                    <p>Dark Dark Görünüm. Ekranda her satırda iki resim olacak şekilde görünür, alt kategoriler tek resim olarak görünür denemek için Menüyü Göster butonuna tıklayabilirsiniz.</p>
+                    <a href="<?= htmlspecialchars($menu2Link) ?>" target="_blank" class="btn btn-outline-primary mb-2">Menüyü Göster</a>
                     <div>
                         <img src="<?= htmlspecialchars($qr2Img) ?>" class="qr-img" alt="QR Kod">
                     </div>
@@ -74,19 +74,7 @@ $qr3Img = $scheme . '://' . $host . $base . '/generate_qr.php?hash=' . $hash . '
             </div>
         </div>
 
-        <!-- Menü 3 -->
-        <div class="col-12 col-md-4">
-            <div class="card h-100">
-                <div class="card-body">
-                    <p>Menu3’e erişim için:</p>
-                    <a href="<?= htmlspecialchars($menu3Link) ?>" target="_blank" class="btn btn-outline-primary mb-2">Menu3 Aç</a>
-                    <div>
-                        <img src="<?= htmlspecialchars($qr3Img) ?>" class="qr-img" alt="QR Kod">
-                    </div>
-                    <p class="mt-2"><small class="text-muted"><?= htmlspecialchars($menu3Link) ?></small></p>
-                </div>
-            </div>
-        </div>
+        
     </div>
 
 

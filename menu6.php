@@ -3,7 +3,7 @@ require_once __DIR__ . '/db.php';
 
 $hash = $_GET['hash'] ?? null;
 $catId = $_GET['cat'] ?? null;
-$theme = $_GET['theme'] ?? 'light'; // Parametrik tema (light varsayılan)
+$theme = 'dark';
 
 if (!$hash) die('Geçersiz link!');
 
@@ -68,12 +68,10 @@ if ($catId) {
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 <style>
 body {
+  background-color: #121212;
   font-family: "Poppins", sans-serif;
+  color: #f1f1f1;
   scroll-behavior: smooth;
-  <?= $theme === 'dark'
-      ? 'background-color:#121212;color:#f1f1f1;'
-      : 'background-color:#f8f9fa;color:#333;'
-  ?>
 }
 <?php if ($backgroundImage): ?>
 body {
@@ -82,40 +80,60 @@ body {
 }
 <?php endif; ?>
 
+h1, h3, h5, h6 { color: #ffffff; }
+p, span, small { color: #d0d0d0; }
+
 .card {
+  background-color: #1e1e1e;
   border: none;
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 2px 8px <?= $theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.08)' ?>;
-  background: <?= $theme === 'dark' ? '#1e1e1e' : '#fff' ?>;
+  box-shadow: 0 2px 8px rgba(255,255,255,0.06);
   transition: all 0.25s ease-in-out;
 }
 .card:hover {
-  <?= $theme === 'dark'
-      ? 'background-color:#252525;box-shadow:0 6px 14px rgba(255,255,255,0.1);'
-      : 'box-shadow:0 6px 14px rgba(0,0,0,0.15);'
-  ?>
+  transform: translateY(-3px);
+  background-color: #252525;
+  box-shadow: 0 6px 14px rgba(255,255,255,0.1);
 }
-.card-title { color: <?= $theme === 'dark' ? '#fff' : '#222' ?>; font-weight:600; }
-.card-text { color: <?= $theme === 'dark' ? '#ccc' : '#555' ?>; }
-.price {
-  font-weight:700;
-  font-size:1rem;
-  color: <?= $theme === 'dark' ? '#ff9800' : '#007bff' ?>;
-}
-.category-img, .menu-img {
+.category-card img, .menu-img {
   height: 220px;
   object-fit: cover;
   width: 100%;
-  <?= $theme === 'dark' ? 'filter:brightness(0.9);' : '' ?>
+  filter: brightness(0.9);
+}
+.carousel-control-prev-icon, .carousel-control-next-icon {
+  background-color: rgba(255,255,255,0.3);
+  border-radius: 50%;
+  padding: 10px;
+}
+.carousel-control-prev-icon:hover, .carousel-control-next-icon:hover {
+  background-color: rgba(255,255,255,0.6);
+}
+.card-body {
+  padding: 15px;
+}
+.card-title {
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+.card-text {
+  color: #cccccc;
+  font-size: 0.95rem;
+}
+.price {
+  font-weight: 700;
+  color: #ffb74d;
+  font-size: 1rem;
 }
 .subcategory-menu {
   position: sticky;
   top: 0;
   z-index: 999;
-  background-color: <?= $theme === 'dark' ? 'rgba(18,18,18,0.95)' : 'rgba(255,255,255,0.95)' ?>;
+  background-color: rgba(18,18,18,0.95);
   padding: 8px 0;
-  border-bottom: 1px solid <?= $theme === 'dark' ? '#333' : '#ddd' ?>;
+  border-bottom: 1px solid #333;
   overflow-x: auto;
   white-space: nowrap;
   scrollbar-width: none;
@@ -127,14 +145,15 @@ body {
   border-radius: 50px;
   padding: 6px 14px;
   font-size: .9rem;
-  border: 1px solid <?= $theme === 'dark' ? '#555' : '#ccc' ?>;
-  color: <?= $theme === 'dark' ? '#ddd' : '#333' ?>;
-  background: <?= $theme === 'dark' ? '#1e1e1e' : '#f8f9fa' ?>;
+  color: #ddd;
+  border: 1px solid #555;
+  background: #1e1e1e;
+  white-space: nowrap;
 }
 .subcategory-menu a.active {
-  background-color: <?= $theme === 'dark' ? '#ff9800' : '#007bff' ?>;
-  border-color: <?= $theme === 'dark' ? '#ff9800' : '#007bff' ?>;
-  color: <?= $theme === 'dark' ? '#000' : '#fff' ?>;
+  background-color: #ff9800;
+  border-color: #ff9800;
+  color: #000;
 }
 section { scroll-margin-top: 80px; }
 
@@ -156,7 +175,7 @@ section { scroll-margin-top: 80px; }
   <div class="row g-4 category-grid">
     <?php foreach ($categories as $cat): ?>
       <div class="col-12 col-md-6 col-lg-4">
-        <a href="?hash=<?= htmlspecialchars($hash) ?>&cat=<?= $cat['CategoryID'] ?>&theme=<?= $theme ?>" class="text-decoration-none <?= $theme === 'dark' ? 'text-light' : 'text-dark' ?>">
+        <a href="?hash=<?= htmlspecialchars($hash) ?>&cat=<?= $cat['CategoryID'] ?>" class="text-decoration-none text-light">
           <div class="card h-100 text-center">
             <?php if($cat['ImageURL']): ?>
               <img src="<?= htmlspecialchars(ltrim($cat['ImageURL'], '/')) ?>" class="category-img" alt="Kategori">
@@ -175,7 +194,7 @@ section { scroll-margin-top: 80px; }
 
   <?php if ($subcategories): ?>
   <div id="subcategoryNav" class="subcategory-menu">
-    <a href="?hash=<?= htmlspecialchars($hash) ?>&theme=<?= $theme ?>" class="btn <?= $theme === 'dark' ? 'btn-outline-light' : 'btn-outline-secondary' ?>">Ana Menü</a>
+    <a href="?hash=<?= htmlspecialchars($hash) ?>" class="btn btn-outline-light">Ana Menü</a>
     <?php foreach ($subcategories as $sub): ?>
       <a href="#sub<?= $sub['SubCategoryID'] ?>" class="btn"><?= htmlspecialchars($sub['SubCategoryName']) ?></a>
     <?php endforeach; ?>
@@ -188,7 +207,7 @@ section { scroll-margin-top: 80px; }
       <div class="row g-4">
 <?php foreach ($itemsBySub[$sub['SubCategoryID']] as $item): ?>
   <div class="col-12 col-md-6 col-lg-4">
-    <a href="menu_item.php?id=<?= $item['MenuItemID'] ?>&hash=<?= htmlspecialchars($hash) ?>&theme=<?= $theme ?>" class="text-decoration-none <?= $theme === 'dark' ? 'text-light' : 'text-dark' ?>">
+    <a href="menu_item.php?id=<?= $item['MenuItemID'] ?>&hash=<?= htmlspecialchars($hash) ?>&theme=dark" class="text-decoration-none text-light">
       <div class="card h-100">
         <?php if (!empty($item['images'])): ?>
           <div id="carousel<?= $item['MenuItemID'] ?>" class="carousel slide" data-bs-ride="carousel">

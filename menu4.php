@@ -3,7 +3,6 @@ require_once __DIR__ . '/db.php';
 
 $hash = $_GET['hash'] ?? null;
 $catId = $_GET['cat'] ?? null;
-$theme = $_GET['theme'] ?? 'light'; // Parametrik tema (light varsayılan)
 
 if (!$hash) die('Geçersiz link!');
 
@@ -68,12 +67,10 @@ if ($catId) {
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 <style>
 body {
+  background-color: #f6f7f9;
   font-family: "Poppins", sans-serif;
+  color: #333;
   scroll-behavior: smooth;
-  <?= $theme === 'dark'
-      ? 'background-color:#121212;color:#f1f1f1;'
-      : 'background-color:#f8f9fa;color:#333;'
-  ?>
 }
 <?php if ($backgroundImage): ?>
 body {
@@ -86,65 +83,54 @@ body {
   border: none;
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 2px 8px <?= $theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.08)' ?>;
-  background: <?= $theme === 'dark' ? '#1e1e1e' : '#fff' ?>;
-  transition: all 0.25s ease-in-out;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+  transition: transform .2s ease, box-shadow .2s ease;
 }
 .card:hover {
-  <?= $theme === 'dark'
-      ? 'background-color:#252525;box-shadow:0 6px 14px rgba(255,255,255,0.1);'
-      : 'box-shadow:0 6px 14px rgba(0,0,0,0.15);'
-  ?>
+  transform: translateY(-3px);
+  box-shadow: 0 6px 12px rgba(0,0,0,0.1);
 }
-.card-title { color: <?= $theme === 'dark' ? '#fff' : '#222' ?>; font-weight:600; }
-.card-text { color: <?= $theme === 'dark' ? '#ccc' : '#555' ?>; }
-.price {
-  font-weight:700;
-  font-size:1rem;
-  color: <?= $theme === 'dark' ? '#ff9800' : '#007bff' ?>;
-}
-.category-img, .menu-img {
+.category-card img, .menu-img {
   height: 220px;
   object-fit: cover;
   width: 100%;
-  <?= $theme === 'dark' ? 'filter:brightness(0.9);' : '' ?>
+  border-bottom: 1px solid #eee;
+}
+.card-body {
+  padding: 15px;
+}
+.price {
+  font-weight: 600;
+  color: #007bff;
 }
 .subcategory-menu {
   position: sticky;
   top: 0;
   z-index: 999;
-  background-color: <?= $theme === 'dark' ? 'rgba(18,18,18,0.95)' : 'rgba(255,255,255,0.95)' ?>;
+  background-color: #fff;
   padding: 8px 0;
-  border-bottom: 1px solid <?= $theme === 'dark' ? '#333' : '#ddd' ?>;
+  border-bottom: 1px solid #e0e0e0;
   overflow-x: auto;
   white-space: nowrap;
   scrollbar-width: none;
 }
-.subcategory-menu::-webkit-scrollbar { display: none; }
+.subcategory-menu::-webkit-scrollbar {
+  display: none;
+}
 .subcategory-menu a {
   display: inline-block;
   margin: 0 4px;
   border-radius: 50px;
   padding: 6px 14px;
   font-size: .9rem;
-  border: 1px solid <?= $theme === 'dark' ? '#555' : '#ccc' ?>;
-  color: <?= $theme === 'dark' ? '#ddd' : '#333' ?>;
-  background: <?= $theme === 'dark' ? '#1e1e1e' : '#f8f9fa' ?>;
+  white-space: nowrap;
 }
 .subcategory-menu a.active {
-  background-color: <?= $theme === 'dark' ? '#ff9800' : '#007bff' ?>;
-  border-color: <?= $theme === 'dark' ? '#ff9800' : '#007bff' ?>;
-  color: <?= $theme === 'dark' ? '#000' : '#fff' ?>;
+  background-color: #007bff;
+  color: #fff;
 }
-section { scroll-margin-top: 80px; }
-
-@media (max-width: 576px) {
-  .category-grid {
-    display: grid !important;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
-  }
-  .category-grid img { height: 130px; }
+section {
+  scroll-margin-top: 80px;
 }
 </style>
 </head>
@@ -153,31 +139,30 @@ section { scroll-margin-top: 80px; }
 <div class="container py-4">
 <?php if (!$catId): ?>
   <h1 class="mb-4 text-center"><?= htmlspecialchars($restaurantName) ?></h1>
-  <div class="row g-4 category-grid">
+  <div class="row g-4">
     <?php foreach ($categories as $cat): ?>
       <div class="col-12 col-md-6 col-lg-4">
-        <a href="?hash=<?= htmlspecialchars($hash) ?>&cat=<?= $cat['CategoryID'] ?>&theme=<?= $theme ?>" class="text-decoration-none <?= $theme === 'dark' ? 'text-light' : 'text-dark' ?>">
-          <div class="card h-100 text-center">
+        <a href="?hash=<?= htmlspecialchars($hash) ?>&cat=<?= $cat['CategoryID'] ?>" class="text-decoration-none text-dark">
+          <div class="card h-100">
             <?php if($cat['ImageURL']): ?>
               <img src="<?= htmlspecialchars(ltrim($cat['ImageURL'], '/')) ?>" class="category-img" alt="Kategori">
             <?php endif; ?>
-            <div class="card-body">
-              <h6 class="card-title mb-0"><?= htmlspecialchars($cat['CategoryName']) ?></h6>
+            <div class="card-body text-center">
+              <h5 class="card-title"><?= htmlspecialchars($cat['CategoryName']) ?></h5>
             </div>
           </div>
         </a>
       </div>
     <?php endforeach; ?>
   </div>
-
 <?php else: ?>
   <h1 class="text-center mb-3"><?= htmlspecialchars($category['CategoryName']) ?> Menüsü</h1>
 
   <?php if ($subcategories): ?>
   <div id="subcategoryNav" class="subcategory-menu">
-    <a href="?hash=<?= htmlspecialchars($hash) ?>&theme=<?= $theme ?>" class="btn <?= $theme === 'dark' ? 'btn-outline-light' : 'btn-outline-secondary' ?>">Ana Menü</a>
-    <?php foreach ($subcategories as $sub): ?>
-      <a href="#sub<?= $sub['SubCategoryID'] ?>" class="btn"><?= htmlspecialchars($sub['SubCategoryName']) ?></a>
+    <a href="?hash=<?= htmlspecialchars($hash) ?>" class="btn btn-outline-secondary">Ana Menü</a>
+    <?php foreach ($subcategories as $index => $sub): ?>
+      <a href="#sub<?= $sub['SubCategoryID'] ?>" class="btn btn-outline-primary"><?= htmlspecialchars($sub['SubCategoryName']) ?></a>
     <?php endforeach; ?>
   </div>
   <?php endif; ?>
@@ -186,38 +171,20 @@ section { scroll-margin-top: 80px; }
     <section id="sub<?= $sub['SubCategoryID'] ?>" class="mt-4">
       <h3 class="mb-3"><?= htmlspecialchars($sub['SubCategoryName']) ?></h3>
       <div class="row g-4">
-<?php foreach ($itemsBySub[$sub['SubCategoryID']] as $item): ?>
-  <div class="col-12 col-md-6 col-lg-4">
-    <a href="menu_item.php?id=<?= $item['MenuItemID'] ?>&hash=<?= htmlspecialchars($hash) ?>&theme=<?= $theme ?>" class="text-decoration-none <?= $theme === 'dark' ? 'text-light' : 'text-dark' ?>">
-      <div class="card h-100">
-        <?php if (!empty($item['images'])): ?>
-          <div id="carousel<?= $item['MenuItemID'] ?>" class="carousel slide" data-bs-ride="carousel">
-            <div class="carousel-inner">
-              <?php foreach ($item['images'] as $i => $img): ?>
-                <div class="carousel-item <?= $i === 0 ? 'active' : '' ?>">
-                  <img src="<?= htmlspecialchars($img['ImageURL']) ?>" class="d-block w-100 menu-img" alt="Menü Görseli">
-                </div>
-              <?php endforeach; ?>
+        <?php foreach ($itemsBySub[$sub['SubCategoryID']] as $item): ?>
+          <div class="col-12 col-md-6 col-lg-4">
+            <div class="card h-100">
+              <?php if (!empty($item['images'])): ?>
+                <img src="<?= htmlspecialchars($item['images'][0]['ImageURL']) ?>" class="menu-img" alt="Menü Görseli">
+              <?php endif; ?>
+              <div class="card-body">
+                <h5 class="card-title"><?= htmlspecialchars($item['MenuName']) ?></h5>
+                <p class="card-text"><?= htmlspecialchars($item['Description']) ?></p>
+                <p class="price"><?= number_format($item['Price'], 2) ?> ₺</p>
+              </div>
             </div>
-            <?php if (count($item['images']) > 1): ?>
-              <button class="carousel-control-prev" type="button" data-bs-target="#carousel<?= $item['MenuItemID'] ?>" data-bs-slide="prev">
-                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
-              </button>
-              <button class="carousel-control-next" type="button" data-bs-target="#carousel<?= $item['MenuItemID'] ?>" data-bs-slide="next">
-                <span class="carousel-control-next-icon" aria-hidden="true"></span>
-              </button>
-            <?php endif; ?>
           </div>
-        <?php endif; ?>
-        <div class="card-body">
-          <h5 class="card-title"><?= htmlspecialchars($item['MenuName']) ?></h5>
-          <p class="card-text"><?= htmlspecialchars($item['Description']) ?></p>
-          <p class="price"><?= number_format($item['Price'], 2) ?> ₺</p>
-        </div>
-      </div>
-    </a>
-  </div>
-<?php endforeach; ?>
+        <?php endforeach; ?>
       </div>
     </section>
   <?php endforeach; ?>
@@ -226,10 +193,22 @@ section { scroll-margin-top: 80px; }
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-const scrollSpy = new bootstrap.ScrollSpy(document.body, { target: '#subcategoryNav', offset: 100 });
-document.addEventListener('activate.bs.scrollspy', function () {
+// Bootstrap ScrollSpy
+const scrollSpy = new bootstrap.ScrollSpy(document.body, {
+  target: '#subcategoryNav',
+  offset: 100
+});
+
+// Aktif buton ortaya gelsin
+document.addEventListener('activate.bs.scrollspy', function (event) {
   const active = document.querySelector('#subcategoryNav .active');
-  if (active) active.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+  if (active) {
+    active.scrollIntoView({
+      behavior: 'smooth',
+      inline: 'center',
+      block: 'nearest'
+    });
+  }
 });
 </script>
 </body>

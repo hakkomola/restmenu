@@ -1,31 +1,38 @@
 <?php
 require_once __DIR__ . '/db.php';
 
-$id = $_GET['id'] ?? null;
 $hash = $_GET['hash'] ?? null;
+$itemId = $_GET['id'] ?? null;
+$theme = $_GET['theme'] ?? 'light'; // varsayılan: açık tema
 
-if (!$id || !$hash) die('Geçersiz link!');
+if (!$hash || !$itemId) die('Geçersiz link!');
 
-// Restoranı bul
-$stmt = $pdo->prepare("SELECT RestaurantID,Name,BackgroundImage FROM Restaurants WHERE MD5(RestaurantID) = ?");
+// Restoran bilgisi
+$stmt = $pdo->prepare("SELECT RestaurantID, Name FROM Restaurants WHERE MD5(RestaurantID) = ?");
 $stmt->execute([$hash]);
 $restaurant = $stmt->fetch();
-if (!$restaurant) die('Geçersiz link!');
+if (!$restaurant) die('Geçersiz restoran bağlantısı!');
 
 $restaurantId = $restaurant['RestaurantID'];
 $restaurantName = $restaurant['Name'];
-$backgroundImage = $restaurant['BackgroundImage'];
 
-// Menü öğesini bul
-$stmt = $pdo->prepare("SELECT * FROM MenuItems WHERE MenuItemID = ? AND RestaurantID = ?");
-$stmt->execute([$id, $restaurantId]);
+// Menü öğesi bilgisi
+$stmt = $pdo->prepare("
+    SELECT m.*, s.SubCategoryName, c.CategoryName
+    FROM MenuItems m
+    LEFT JOIN SubCategories s ON m.SubCategoryID = s.SubCategoryID
+    LEFT JOIN MenuCategories c ON s.CategoryID = c.CategoryID
+    WHERE m.MenuItemID = ? AND c.RestaurantID = ?
+");
+$stmt->execute([$itemId, $restaurantId]);
 $item = $stmt->fetch();
-if (!$item) die('Menü öğesi bulunamadı!');
 
-// Menü öğesi resimleri
-$stmt = $pdo->prepare("SELECT * FROM MenuImages WHERE MenuItemID = ?");
-$stmt->execute([$id]);
-$images = $stmt->fetchAll();
+if (!$item) die('Ürün bulunamadı!');
+
+// Görseller
+$stmt2 = $pdo->prepare("SELECT * FROM MenuImages WHERE MenuItemID = ?");
+$stmt2->execute([$itemId]);
+$images = $stmt2->fetchAll();
 
 $fixedImages = [];
 foreach ($images as $img) {
@@ -34,84 +41,117 @@ foreach ($images as $img) {
     $img['ImageURL'] = $url;
     $fixedImages[] = $img;
 }
+$images = $fixedImages;
 ?>
 <!DOCTYPE html>
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title><?= htmlspecialchars($item['MenuName']) ?></title>
+<title><?= htmlspecialchars($item['MenuName']) ?> - <?= htmlspecialchars($restaurantName) ?></title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
 <style>
-body { 
-    background-color: #f8f9fa; 
-    <?php if ($backgroundImage): ?>
-    background: url('<?= htmlspecialchars(ltrim($backgroundImage, '/')) ?>') no-repeat center center fixed;
-    background-size: cover;
-    <?php endif; ?>
+body {
+  font-family: "Poppins", sans-serif;
+  <?= $theme === 'dark'
+      ? 'background-color:#121212;color:#f1f1f1;'
+      : 'background-color:#f8f9fa;color:#222;'
+  ?>
 }
-
-.menu-img {
-    width: 100%;
-    height: 400px; /* Sabit yükseklik */
-    object-fit: cover; /* Resim taşmasını önler, kırpar ama bozulmaz */
-    border-radius: 8px;
+.container {
+  max-width: 700px;
 }
-.carousel-item {
-    height: 400px; /* Carousel item yüksekliği sabit */
-  
-    justify-content: center;
-    align-items: center;
+.card {
+  border: none;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px <?= $theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.1)' ?>;
+  background: <?= $theme === 'dark' ? '#1e1e1e' : '#fff' ?>;
+  transition: all 0.25s ease-in-out;
 }
-
+.card:hover {
+  <?= $theme === 'dark'
+      ? 'background-color:#252525;box-shadow:0 6px 14px rgba(255,255,255,0.1);'
+      : 'box-shadow:0 6px 14px rgba(0,0,0,0.15);'
+  ?>
+}
+.carousel-item img {
+  height: 300px;
+  object-fit: cover;
+  width: 100%;
+  <?= $theme === 'dark' ? 'filter:brightness(0.85);' : '' ?>
+}
 .carousel-control-prev-icon,
 .carousel-control-next-icon {
-    background-color: rgba(0, 0, 0, 0.7); /* Daha koyu arka plan */
-    border-radius: 50%;
-    padding: 12px;
-    width: 40px;  /* Genişliği arttır */
-    height: 40px; /* Yüksekliği arttır */
+  background-color: <?= $theme === 'dark' ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.4)' ?>;
+  border-radius: 50%;
+  padding: 10px;
 }
-.carousel-control-prev,
-.carousel-control-next {
-    top: 50%;
-    transform: translateY(-50%);
-    opacity: 0.7; /* Her zaman görünür */
+.carousel-control-prev-icon:hover,
+.carousel-control-next-icon:hover {
+  background-color: <?= $theme === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)' ?>;
 }
-
-
-.card { margin-bottom: 20px; }
+.card-body {
+  padding: 20px;
+}
+.card-body h3 {
+  color: <?= $theme === 'dark' ? '#ffffff' : '#222' ?>;
+  font-weight: 600;
+}
+.card-body p {
+  color: <?= $theme === 'dark' ? '#cccccc' : '#555' ?>;
+  font-size: 0.95rem;
+}
+.price {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: <?= $theme === 'dark' ? '#ff9800' : '#007bff' ?> !important;
+}
+.back-btn {
+  text-decoration: none;
+  font-weight: 500;
+  color: <?= $theme === 'dark' ? '#ff9800' : '#007bff' ?>;
+}
+.back-btn:hover { text-decoration: underline; }
 </style>
 </head>
 <body>
-<div class="container mt-4">
-    <h1 class="mb-4"><?= htmlspecialchars($item['MenuName']) ?></h1>
 
-    <?php if ($fixedImages): ?>
-    <div id="carouselItem" class="carousel slide mb-4" data-bs-ride="carousel">
+<div class="container my-4">
+  <a href="javascript:history.back()" class="back-btn mb-3 d-inline-block">&larr; Geri Dön</a>
+
+  <div class="card">
+    <?php if (!empty($images)): ?>
+      <div id="carouselItem<?= $item['MenuItemID'] ?>" class="carousel slide" data-bs-ride="carousel">
         <div class="carousel-inner">
-            <?php foreach ($fixedImages as $i => $img): ?>
-                <div class="carousel-item <?= $i === 0 ? 'active' : '' ?>">
-                    <img src="<?= htmlspecialchars($img['ImageURL']) ?>" class="d-block w-100 menu-img" alt="Menü Resmi">
-                </div>
-            <?php endforeach; ?>
+          <?php foreach ($images as $i => $img): ?>
+            <div class="carousel-item <?= $i === 0 ? 'active' : '' ?>">
+              <img src="<?= htmlspecialchars($img['ImageURL']) ?>" class="d-block w-100" alt="Menü Görseli">
+            </div>
+          <?php endforeach; ?>
         </div>
-        <?php if (count($fixedImages) > 1): ?>
-            <button class="carousel-control-prev" type="button" data-bs-target="#carouselItem" data-bs-slide="prev">
-                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
-            </button>
-            <button class="carousel-control-next" type="button" data-bs-target="#carouselItem" data-bs-slide="next">
-                <span class="carousel-control-next-icon" aria-hidden="true"></span>
-            </button>
+        <?php if (count($images) > 1): ?>
+          <button class="carousel-control-prev" type="button" data-bs-target="#carouselItem<?= $item['MenuItemID'] ?>" data-bs-slide="prev">
+            <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+          </button>
+          <button class="carousel-control-next" type="button" data-bs-target="#carouselItem<?= $item['MenuItemID'] ?>" data-bs-slide="next">
+            <span class="carousel-control-next-icon" aria-hidden="true"></span>
+          </button>
         <?php endif; ?>
-    </div>
+      </div>
     <?php endif; ?>
 
-    <p><?= htmlspecialchars($item['Description']) ?></p>
-    <p class="fw-bold"><?= number_format($item['Price'], 2) ?> ₺</p>
-
-    <a href="javascript:history.back()" class="btn btn-primary">Geri</a>
-
+    <div class="card-body">
+      <h3><?= htmlspecialchars($item['MenuName']) ?></h3>
+      <?php if (!empty($item['Description'])): ?>
+        <p class="mt-2"><?= nl2br(htmlspecialchars($item['Description'])) ?></p>
+      <?php endif; ?>
+      <p class="price mt-3" style="color: <?= $theme === 'dark' ? '#ff9800' : '#007bff' ?> !important;">
+        <?= number_format($item['Price'], 2) ?> ₺
+      </p>
+    </div>
+  </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
