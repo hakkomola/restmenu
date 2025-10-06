@@ -17,17 +17,15 @@ $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' :
 $host = $_SERVER['HTTP_HOST'];
 $base = str_replace('/restaurants','', rtrim(dirname($_SERVER['SCRIPT_NAME']), '/\\')); // /restmenu
 
+
+
 // menu.php
-$menuLink = $scheme . '://' . $host . $base . '/menu.php?hash=' . $hash . '&theme=light';
+$menuLink = $scheme . '://' . $host . $base . '/restaurant_info.php?hash=' . $hash . '&theme=light&lang=tr';
 $qrImg = $scheme . '://' . $host . $base . '/generate_qr.php?hash=' . $hash;
 
 // menu2.php
-$menu2Link = $scheme . '://' . $host . $base . '/menu.php?hash=' . $hash . '&theme=dark';
+$menu2Link = $scheme . '://' . $host . $base . '/restaurant_info.php?hash=' . $hash . '&theme=dark&lang=tr';
 $qr2Img = $scheme . '://' . $host . $base . '/generate_qr.php?hash=' . $hash . '&menu=2';
-
-// menu3.php
-$menu3Link = $scheme . '://' . $host . $base . '/menu3.php?hash=' . $hash;
-$qr3Img = $scheme . '://' . $host . $base . '/generate_qr.php?hash=' . $hash . '&menu=3';
 ?>
 
 <!DOCTYPE html>

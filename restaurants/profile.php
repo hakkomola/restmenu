@@ -1,9 +1,7 @@
 <?php
-// restaurants/profile.php
 session_start();
 require_once __DIR__ . '/../db.php';
 
-// oturum kontrolü (uygulamada kullandığınız anahtar: 'restaurant_id')
 if (!isset($_SESSION['restaurant_id'])) {
     header('Location: login.php');
     exit;
@@ -13,64 +11,53 @@ $restaurantId = $_SESSION['restaurant_id'];
 $message = '';
 $error = '';
 
-// include navbar (artık header yönlendirmesi yapıldıktan sonra include ediyoruz)
 include __DIR__ . '/../includes/navbar.php';
 
-// Restoran bilgilerini çek
+// Restoran bilgileri çek
 $stmt = $pdo->prepare("SELECT * FROM Restaurants WHERE RestaurantID = ?");
 $stmt->execute([$restaurantId]);
 $restaurant = $stmt->fetch(PDO::FETCH_ASSOC);
+
 if (!$restaurant) {
-    // normalde buraya gelmemeli; oturum olsa bile DB'de yoksa çıkış yap
     header('Location: logout.php');
     exit;
 }
 
-// Eğer "Arka planı sil" butonuna basıldıysa ayrı işlem (önce kontrol et)
+// Arka plan resmi silme
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_background'])) {
-    $old = $restaurant['BackgroundImage'] ?? null;
-    if ($old) {
-        $oldPath = __DIR__ . '/../' . ltrim($old, '/');
-        if (file_exists($oldPath)) {
-            @unlink($oldPath);
-        }
+    if (!empty($restaurant['BackgroundImage'])) {
+        $oldPath = __DIR__ . '/../' . ltrim($restaurant['BackgroundImage'], '/');
+        if (file_exists($oldPath)) @unlink($oldPath);
     }
-    $upd = $pdo->prepare("UPDATE Restaurants SET BackgroundImage = NULL WHERE RestaurantID = ?");
-    $upd->execute([$restaurantId]);
-    // yenilenmiş veri çekilip mesaj gösterilecek
-    $stmt->execute([$restaurantId]);
-    $restaurant = $stmt->fetch(PDO::FETCH_ASSOC);
-    $message = 'Arka plan resmi silindi.';
-    // yönlendirmeyle double-submit önle
+    $pdo->prepare("UPDATE Restaurants SET BackgroundImage = NULL WHERE RestaurantID = ?")->execute([$restaurantId]);
     header('Location: profile.php?success=1');
     exit;
 }
 
-// Normal güncelleme işlemi
+// Güncelleme işlemi
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['delete_background'])) {
-    $name = trim($_POST['name'] ?? '');
-    $email = trim($_POST['email'] ?? '');
-    $phone = trim($_POST['phone'] ?? '');
-    $address = trim($_POST['address'] ?? '');
-    $password = $_POST['password'] ?? '';
+    $name       = trim($_POST['name'] ?? '');
+    $nameHTML   = trim($_POST['name_html'] ?? '');
+    $email      = trim($_POST['email'] ?? '');
+    $phone      = trim($_POST['phone'] ?? '');
+    $address    = trim($_POST['address'] ?? '');
+    $password   = $_POST['password'] ?? '';
 
     if ($name === '' || $email === '') {
         $error = 'İsim ve e-posta zorunludur.';
     } else {
-        // Arka plan resmi işlemleri
         $bgToSave = $restaurant['BackgroundImage'];
 
+        // Arka plan yükleme
         if (!empty($_FILES['bg_image']['name'])) {
             $uploadsDir = __DIR__ . '/../uploads/';
             if (!is_dir($uploadsDir)) mkdir($uploadsDir, 0777, true);
 
-            // güvenli dosya adı
             $safeName = preg_replace('/[^A-Za-z0-9_\-\.]/', '_', basename($_FILES['bg_image']['name']));
             $fileName = time() . '_' . $safeName;
             $target = $uploadsDir . $fileName;
 
             if (move_uploaded_file($_FILES['bg_image']['tmp_name'], $target)) {
-                // eskiyi sil
                 if (!empty($restaurant['BackgroundImage'])) {
                     $oldPath = __DIR__ . '/../' . ltrim($restaurant['BackgroundImage'], '/');
                     if (file_exists($oldPath)) @unlink($oldPath);
@@ -82,54 +69,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['delete_background'])
         }
 
         if ($error === '') {
-            // Dinamik UPDATE: şifre girildiyse PasswordHash ekle
-            $sqlParts = [];
-            $params = [];
-
-            $sqlParts[] = "Name = ?";
-            $params[] = $name;
-
-            $sqlParts[] = "Email = ?";
-            $params[] = $email;
-
-            $sqlParts[] = "Phone = ?";
-            $params[] = $phone;
-
-            $sqlParts[] = "Address = ?";
-            $params[] = $address;
-
-            $sqlParts[] = "BackgroundImage = ?";
-            $params[] = $bgToSave;
+            $sql = "UPDATE Restaurants 
+                    SET Name = ?, NameHTML = ?, Email = ?, Phone = ?, Address = ?, BackgroundImage = ?";
+            $params = [$name, $nameHTML, $email, $phone, $address, $bgToSave];
 
             if (!empty($password)) {
-                $sqlParts[] = "PasswordHash = ?";
+                $sql .= ", PasswordHash = ?";
                 $params[] = password_hash($password, PASSWORD_DEFAULT);
             }
 
+            $sql .= " WHERE RestaurantID = ?";
             $params[] = $restaurantId;
-            $sql = "UPDATE Restaurants SET " . implode(', ', $sqlParts) . " WHERE RestaurantID = ?";
 
             $upd = $pdo->prepare($sql);
             $upd->execute($params);
 
-            // session'daki isim güncelle
             $_SESSION['restaurant_name'] = $name;
-
-            // yenilenmiş veriyi çek
-            $stmt->execute([$restaurantId]);
-            $restaurant = $stmt->fetch(PDO::FETCH_ASSOC);
-
-            $message = 'Bilgiler başarıyla güncellendi.';
             header('Location: dashboard.php');
-
             exit;
         }
     }
 }
 
-// Sayfaya gelindiğinde success query varsa mesaj göster
 if (isset($_GET['success'])) {
-    if ($message === '') $message = 'İşlem başarıyla gerçekleştirildi.';
+    $message = 'İşlem başarıyla gerçekleştirildi.';
 }
 ?>
 <!DOCTYPE html>
@@ -153,24 +116,37 @@ if (isset($_GET['success'])) {
     <?php endif; ?>
 
     <form method="post" enctype="multipart/form-data">
+
+        <!-- Normal Restoran Adı -->
         <div class="mb-3">
             <label class="form-label">Restoran Adı</label>
-            <input type="text" name="name" class="form-control" value="<?= htmlspecialchars($restaurant['Name']) ?>" required>
+            <input type="text" name="name" class="form-control" 
+                   value="<?= htmlspecialchars($restaurant['Name'] ?? '') ?>" required>
+        </div>
+
+        <!-- HTML Başlık -->
+        <div class="mb-3">
+            <label class="form-label">Restoran Adı (HTML Başlık - isteğe bağlı)</label>
+            <textarea name="name_html" class="form-control" rows="3"
+                      placeholder="<h1>Portside</h1><div>Food - Drink - More</div>"><?= htmlspecialchars($restaurant['NameHTML'] ?? '') ?></textarea>
+            <div class="form-text">Bu alanı doldurursan <strong>restaurant_info.php</strong> sayfasında bu HTML gösterilir.</div>
         </div>
 
         <div class="mb-3">
             <label class="form-label">E-posta</label>
-            <input type="email" name="email" class="form-control" value="<?= htmlspecialchars($restaurant['Email']) ?>" required>
+            <input type="email" name="email" class="form-control" 
+                   value="<?= htmlspecialchars($restaurant['Email'] ?? '') ?>" required>
         </div>
 
         <div class="mb-3">
             <label class="form-label">Telefon</label>
-            <input type="text" name="phone" class="form-control" value="<?= htmlspecialchars($restaurant['Phone']) ?>">
+            <input type="text" name="phone" class="form-control" 
+                   value="<?= htmlspecialchars($restaurant['Phone'] ?? '') ?>">
         </div>
 
         <div class="mb-3">
             <label class="form-label">Adres</label>
-            <textarea name="address" class="form-control" rows="3"><?= htmlspecialchars($restaurant['Address']) ?></textarea>
+            <textarea name="address" class="form-control" rows="3"><?= htmlspecialchars($restaurant['Address'] ?? '') ?></textarea>
         </div>
 
         <div class="mb-3">
@@ -180,31 +156,30 @@ if (isset($_GET['success'])) {
 
         <hr>
 
+        <!-- Arka Plan Resmi -->
         <div class="mb-3">
             <label class="form-label">Arka Plan Resmi</label><br>
             <?php if (!empty($restaurant['BackgroundImage'])): ?>
                 <div class="mb-2">
-                    <img src="../<?= htmlspecialchars(ltrim($restaurant['BackgroundImage'], '/')) ?>" alt="Background" style="max-width:300px; border:1px solid #ccc;">
+                    <img src="../<?= htmlspecialchars(ltrim($restaurant['BackgroundImage'], '/')) ?>" 
+                         alt="Background" style="max-width:300px; border:1px solid #ccc;">
                 </div>
-
-                <!-- Arka planı silmek için ayrı form -->
                 <form method="post" style="display:inline-block;">
                     <input type="hidden" name="delete_background" value="1">
-                    <button type="submit" class="btn btn-danger mb-2" onclick="return confirm('Arka plan resmini silmek istediğinize emin misiniz?')">Arka Planı Sil</button>
+                    <button type="submit" class="btn btn-danger mb-2" 
+                            onclick="return confirm('Arka plan resmini silmek istiyor musunuz?')">Arka Planı Sil</button>
                 </form>
             <?php endif; ?>
-
             <input type="file" name="bg_image" class="form-control mt-2" accept="image/*">
-            <div class="form-text">Yeni bir arka plan resmi seçerseniz eski resim dosyadan silinecektir.</div>
+            <div class="form-text">Yeni bir resim seçersen eski resim silinir.</div>
         </div>
 
         <div class="mt-4">
-            <button type="submit" class="btn btn-primary">Güncelle</button>
+            <button type="submit" class="btn btn-primary">Kaydet</button>
             <a href="../restaurants/dashboard.php" class="btn btn-secondary">Geri</a>
         </div>
     </form>
 </div>
-
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
