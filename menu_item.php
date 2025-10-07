@@ -1,59 +1,122 @@
 <?php
 require_once __DIR__ . '/db.php';
 
-$hash = $_GET['hash'] ?? null;
-$itemId = $_GET['id'] ?? null;
-$theme = $_GET['theme'] ?? 'light';
+$hash   = $_GET['hash']  ?? null;
+$itemId = $_GET['id']    ?? null;
+$theme  = $_GET['theme'] ?? 'light';
+$lang   = $_GET['lang']  ?? null;
+$catId  = $_GET['cat']   ?? null; // 🔸 geri için kategori bilgisini koru
 
 if (!$hash || !$itemId) die('Geçersiz link!');
 
-// Restoran bilgisi
-$stmt = $pdo->prepare("SELECT RestaurantID, Name FROM Restaurants WHERE MD5(RestaurantID) = ?");
+// Restoran bilgisi (+ varsayılan dil)
+$stmt = $pdo->prepare("SELECT RestaurantID, Name, DefaultLanguage FROM Restaurants WHERE MD5(RestaurantID) = ?");
 $stmt->execute([$hash]);
-$restaurant = $stmt->fetch();
+$restaurant = $stmt->fetch(PDO::FETCH_ASSOC);
 if (!$restaurant) die('Geçersiz restoran bağlantısı!');
 
-$restaurantId = $restaurant['RestaurantID'];
+$restaurantId   = (int)$restaurant['RestaurantID'];
 $restaurantName = $restaurant['Name'];
+if (!$lang) $lang = $restaurant['DefaultLanguage'] ?: 'tr';
 
-// Menü öğesi bilgisi
+// Desteklenen diller (RestaurantLanguages + Languages)
+$langStmt = $pdo->prepare("
+    SELECT rl.LangCode, rl.IsDefault, l.LangName
+    FROM RestaurantLanguages rl
+    JOIN Languages l ON l.LangCode = rl.LangCode
+    WHERE rl.RestaurantID = ?
+    ORDER BY rl.IsDefault DESC, l.LangName ASC
+");
+$langStmt->execute([$restaurantId]);
+$supportedLangs = $langStmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Bayrak kodu (flagcdn)
+function flag_code_from_lang($lc) {
+    $lc = strtolower($lc);
+    $map = [
+        'tr'=>'tr','en'=>'gb','de'=>'de','fr'=>'fr','es'=>'es','it'=>'it','nl'=>'nl','ru'=>'ru',
+        'ar'=>'sa','fa'=>'ir','zh'=>'cn','ja'=>'jp','ko'=>'kr','el'=>'gr','he'=>'il','pt'=>'pt','az'=>'az'
+    ];
+    return $map[$lc] ?? $lc;
+}
+
+// UI metinleri
+$uiText = [
+    'tr' => ['back'=>'Geri Dön','options'=>'Seçenekler'],
+    'en' => ['back'=>'Back','options'=>'Options'],
+];
+$tx = $uiText[strtolower($lang)] ?? $uiText['tr'];
+
+// MenuItemTranslations FK kolon adı (MenuItemID / ItemID) tespiti
+$itemFkCol = 'MenuItemID';
+try {
+    $colCheck = $pdo->prepare("
+        SELECT COLUMN_NAME
+        FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = 'MenuItemTranslations'
+          AND COLUMN_NAME IN ('MenuItemID','ItemID')
+        LIMIT 1
+    ");
+    $colCheck->execute();
+    $found = $colCheck->fetchColumn();
+    if ($found) $itemFkCol = $found;
+} catch (Exception $e) { /* varsayılan kalsın */ }
+
+// Menü öğesi bilgisi (çeviri ile)
 $stmt = $pdo->prepare("
-    SELECT m.*, s.SubCategoryName, c.CategoryName
+    SELECT m.*,
+           s.SubCategoryID,
+           s.SubCategoryName,
+           c.CategoryID,
+           c.CategoryName,
+           COALESCE(mt.Name, m.MenuName)           AS MenuNameDisp,
+           COALESCE(mt.Description, m.Description) AS DescriptionDisp
     FROM MenuItems m
     LEFT JOIN SubCategories s ON m.SubCategoryID = s.SubCategoryID
     LEFT JOIN MenuCategories c ON s.CategoryID = c.CategoryID
+    LEFT JOIN MenuItemTranslations mt
+           ON mt.$itemFkCol = m.MenuItemID AND mt.LangCode = ?
     WHERE m.MenuItemID = ? AND c.RestaurantID = ?
 ");
-$stmt->execute([$itemId, $restaurantId]);
-$item = $stmt->fetch();
+$stmt->execute([$lang, $itemId, $restaurantId]);
+$item = $stmt->fetch(PDO::FETCH_ASSOC);
 if (!$item) die('Ürün bulunamadı!');
 
+// Eğer cat paramı yoksa, üründen türet (daha sağlam geri için)
+if (!$catId && !empty($item['CategoryID'])) {
+    $catId = $item['CategoryID'];
+}
+
 // Görseller
-$stmt2 = $pdo->prepare("SELECT * FROM MenuImages WHERE MenuItemID = ?");
+$stmt2 = $pdo->prepare("SELECT ImageURL FROM MenuImages WHERE MenuItemID = ?");
 $stmt2->execute([$itemId]);
-$images = $stmt2->fetchAll();
-
-// Seçenekler
-$stmt3 = $pdo->prepare("SELECT * FROM MenuItemOptions WHERE MenuItemID = ? ORDER BY SortOrder, OptionName");
-$stmt3->execute([$itemId]);
-$options = $stmt3->fetchAll();
-
-// Görsel yollarını düzelt
-$fixedImages = [];
-foreach ($images as $img) {
+$images = [];
+foreach ($stmt2->fetchAll(PDO::FETCH_ASSOC) as $img) {
     $url = ltrim($img['ImageURL'], '/');
     if (strpos($url, 'uploads/') !== 0) $url = 'uploads/' . $url;
-    $img['ImageURL'] = $url;
-    $fixedImages[] = $img;
+    $images[] = ['ImageURL' => $url];
 }
-$images = $fixedImages;
+
+// Seçenekler (çeviri ile)
+$stmt3 = $pdo->prepare("
+    SELECT o.*,
+           COALESCE(ot.Name, o.OptionName) AS OptionNameDisp
+    FROM MenuItemOptions o
+    LEFT JOIN MenuItemOptionTranslations ot
+           ON ot.OptionID = o.OptionID AND ot.LangCode = ?
+    WHERE o.MenuItemID = ?
+    ORDER BY o.SortOrder, OptionNameDisp
+");
+$stmt3->execute([$lang, $itemId]);
+$options = $stmt3->fetchAll(PDO::FETCH_ASSOC);
 ?>
 <!DOCTYPE html>
-<html lang="tr">
+<html lang="<?= htmlspecialchars($lang) ?>">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title><?= htmlspecialchars($item['MenuName']) ?> - <?= htmlspecialchars($restaurantName) ?></title>
+<title><?= htmlspecialchars($item['MenuNameDisp']) ?> - <?= htmlspecialchars($restaurantName) ?></title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
 <style>
@@ -65,6 +128,24 @@ body {
   ?>
 }
 .container { max-width: 700px; }
+
+/* Üst bar: dil bayrakları */
+.topbar { display:flex; justify-content:flex-end; align-items:center; gap:8px; padding-top:10px; }
+.lang-switch { display:flex; gap:8px; flex-wrap:wrap; }
+.lang-switch a {
+  display:inline-flex; align-items:center; gap:6px;
+  padding:6px 12px; border-radius:20px; font-weight:600; text-decoration:none;
+  border:1px solid <?= $theme === 'dark' ? '#555' : '#ccc' ?>;
+  <?= $theme === 'dark' ? 'background:#1e1e1e;color:#eee;' : 'background:#fff;color:#333;' ?>
+}
+.lang-switch a.active {
+  <?= $theme === 'dark'
+    ? 'background:#ff9800;color:#000;border-color:#ff9800;'
+    : 'background:#007bff;color:#fff;border-color:#007bff;'
+  ?>
+}
+.lang-switch img { width:22px; height:15px; border-radius:3px; object-fit:cover; }
+
 .page-header {
   text-align: center;
   margin-bottom: 20px;
@@ -95,85 +176,74 @@ body {
   ?>
 }
 .carousel-item img {
-  height: 300px;
-  object-fit: cover;
-  width: 100%;
+  height: 300px; object-fit: cover; width: 100%;
   <?= $theme === 'dark' ? 'filter:brightness(0.85);' : '' ?>
 }
 .carousel-control-prev-icon,
 .carousel-control-next-icon {
   background-color: <?= $theme === 'dark' ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.4)' ?>;
-  border-radius: 50%;
-  padding: 10px;
+  border-radius: 50%; padding: 10px;
 }
 .carousel-control-prev-icon:hover,
 .carousel-control-next-icon:hover {
   background-color: <?= $theme === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)' ?>;
 }
 .card-body { padding: 20px; }
-.card-body h3 {
-  color: <?= $theme === 'dark' ? '#ffffff' : '#222' ?>;
-  font-weight: 600;
-}
-.card-body p {
-  color: <?= $theme === 'dark' ? '#cccccc' : '#555' ?>;
-  font-size: 0.95rem;
-}
-.price {
-  font-weight: 700;
-  font-size: 1.1rem;
-  color: <?= $theme === 'dark' ? '#ff9800' : '#007bff' ?> !important;
-}
-.back-btn {
-  text-decoration: none;
-  font-weight: 500;
-  color: <?= $theme === 'dark' ? '#ff9800' : '#007bff' ?>;
-}
+.card-body h3 { color: <?= $theme === 'dark' ? '#ffffff' : '#222' ?>; font-weight: 600; }
+.card-body p  { color: <?= $theme === 'dark' ? '#cccccc' : '#555' ?>; font-size: 0.95rem; }
+.price { font-weight: 700; font-size: 1.1rem; color: <?= $theme === 'dark' ? '#ff9800' : '#007bff' ?> !important; }
+.back-btn { text-decoration: none; font-weight: 500; color: <?= $theme === 'dark' ? '#ff9800' : '#007bff' ?>; }
 .back-btn:hover { text-decoration: underline; }
 
-/* 🔸 Seçenekler Alanı */
-.option-list {
-  margin-top: 20px;
-  border-top: 1px solid <?= $theme === 'dark' ? '#333' : '#ddd' ?>;
-  padding-top: 15px;
-}
+/* Seçenekler */
+.option-list { margin-top: 20px; border-top: 1px solid <?= $theme === 'dark' ? '#333' : '#ddd' ?>; padding-top: 15px; }
 .option-list h4 {
-  font-size: 1.1rem;
-  font-weight: 600;
-  margin-bottom: 10px;
+  font-size: 1.1rem; font-weight: 600; margin-bottom: 10px;
   color: <?= $theme === 'dark' ? '#ff9800' : '#007bff' ?>;
 }
-.option-item {
-  display: flex;
-  justify-content: space-between;
-  padding: 8px 0;
-  border-bottom: 1px dashed <?= $theme === 'dark' ? '#444' : '#ccc' ?>;
-}
+.option-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed <?= $theme === 'dark' ? '#444' : '#ccc' ?>; }
 .option-item:last-child { border-bottom: none; }
-.option-item span {
-  font-size: 0.95rem;
-  <?= $theme === 'dark'
-      ? 'color:#ffcc80;'
-      : 'color:#333;'
-  ?>
-}
+.option-item span { font-size: 0.95rem; <?= $theme === 'dark' ? 'color:#ffcc80;' : 'color:#333;' ?> }
 </style>
 </head>
 <body>
 
 <div class="container my-4">
 
+  <!-- Üst sağ: dil seçimi bayrakları (cat paramı korunur) -->
+  <div class="topbar">
+    <div class="lang-switch">
+      <?php if (!empty($supportedLangs)): ?>
+        <?php foreach ($supportedLangs as $L):
+            $lc   = strtolower($L['LangCode']);
+            $flag = flag_code_from_lang($lc);
+            $isActive = ($lc === strtolower($lang));
+            $qs = "hash=".urlencode($hash)
+                . "&id=".urlencode($itemId)
+                . "&theme=".urlencode($theme)
+                . "&lang=".urlencode($lc);
+            if (!empty($catId)) $qs .= "&cat=".urlencode($catId); // 🔸 dil değiştirmede kategori korunur
+        ?>
+          <a class="<?= $isActive ? 'active' : '' ?>" href="?<?= $qs ?>">
+            <img src="https://flagcdn.com/w20/<?= htmlspecialchars($flag) ?>.png" alt="<?= htmlspecialchars($L['LangName']) ?>">
+            <span><?= strtoupper($lc) ?></span>
+          </a>
+        <?php endforeach; ?>
+      <?php endif; ?>
+    </div>
+  </div>
+
   <!-- Üst Bilgi -->
   <div class="page-header">
     <h1><?= htmlspecialchars($restaurantName) ?></h1>
-    <h3><?= htmlspecialchars($item['MenuName']) ?></h3>
+    <h3><?= htmlspecialchars($item['MenuNameDisp']) ?></h3>
   </div>
 
-  <a href="#" onclick="goBack()" class="back-btn mb-3 d-inline-block">&larr; Geri Dön</a>
+  <a href="#" onclick="goBack()" class="back-btn mb-3 d-inline-block">&larr; <?= htmlspecialchars($tx['back']) ?></a>
 
   <div class="card">
     <?php if (!empty($images)): ?>
-      <div id="carouselItem<?= $item['MenuItemID'] ?>" class="carousel slide" data-bs-ride="carousel">
+      <div id="carouselItem<?= (int)$item['MenuItemID'] ?>" class="carousel slide" data-bs-ride="carousel">
         <div class="carousel-inner">
           <?php foreach ($images as $i => $img): ?>
             <div class="carousel-item <?= $i === 0 ? 'active' : '' ?>">
@@ -182,10 +252,10 @@ body {
           <?php endforeach; ?>
         </div>
         <?php if (count($images) > 1): ?>
-          <button class="carousel-control-prev" type="button" data-bs-target="#carouselItem<?= $item['MenuItemID'] ?>" data-bs-slide="prev">
+          <button class="carousel-control-prev" type="button" data-bs-target="#carouselItem<?= (int)$item['MenuItemID'] ?>" data-bs-slide="prev">
             <span class="carousel-control-prev-icon" aria-hidden="true"></span>
           </button>
-          <button class="carousel-control-next" type="button" data-bs-target="#carouselItem<?= $item['MenuItemID'] ?>" data-bs-slide="next">
+          <button class="carousel-control-next" type="button" data-bs-target="#carouselItem<?= (int)$item['MenuItemID'] ?>" data-bs-slide="next">
             <span class="carousel-control-next-icon" aria-hidden="true"></span>
           </button>
         <?php endif; ?>
@@ -193,20 +263,20 @@ body {
     <?php endif; ?>
 
     <div class="card-body">
-      <?php if (!empty($item['Description'])): ?>
-        <p class="mt-2"><?= nl2br(htmlspecialchars($item['Description'])) ?></p>
+      <?php if (!empty($item['DescriptionDisp'])): ?>
+        <p class="mt-2"><?= nl2br(htmlspecialchars($item['DescriptionDisp'])) ?></p>
       <?php endif; ?>
 
-      <p class="price mt-3"><?= number_format($item['Price'], 2) ?> ₺</p>
+      <p class="price mt-3"><?= number_format((float)$item['Price'], 2) ?> ₺</p>
 
-      <!-- 🔸 Seçenekler -->
+      <!-- Seçenekler -->
       <?php if (!empty($options)): ?>
         <div class="option-list">
-          <h4>Seçenekler</h4>
+          <h4><?= htmlspecialchars($tx['options']) ?></h4>
           <?php foreach ($options as $opt): ?>
             <div class="option-item">
-              <span><?= htmlspecialchars($opt['OptionName']) ?></span>
-              <span><?= number_format($opt['Price'], 2) ?> ₺</span>
+              <span><?= htmlspecialchars($opt['OptionNameDisp']) ?></span>
+              <span><?= number_format((float)$opt['Price'], 2) ?> ₺</span>
             </div>
           <?php endforeach; ?>
         </div>
@@ -217,20 +287,20 @@ body {
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+// 🔸 Her zaman listeye dön: cat varsa o kategori, yoksa ana menü
 function goBack() {
-  if (document.referrer && document.referrer !== window.location.href) {
-    history.back();
-  } else {
-    // Tarayıcı geçmişi yoksa ana menüye yönlendir
-    const params = new URLSearchParams(window.location.search);
-    const hash = params.get("hash");
-    const theme = params.get("theme") || "light";
-    if (hash) {
-      window.location.href = "menu.php?hash=" + hash + "&theme=" + theme;
-    } else {
-      window.location.href = "index.php";
-    }
-  }
+  const params = new URLSearchParams(window.location.search);
+  const hash  = params.get("hash");
+  const theme = params.get("theme") || "light";
+  const lang  = params.get("lang")  || "tr";
+  const cat   = params.get("cat");
+
+  let url = "menu.php?hash=" + encodeURIComponent(hash)
+          + "&theme=" + encodeURIComponent(theme)
+          + "&lang=" + encodeURIComponent(lang);
+  if (cat) url += "&cat=" + encodeURIComponent(cat);
+
+  window.location.href = url;
 }
 </script>
 </body>

@@ -64,6 +64,28 @@ $texts = [
   ]
 ];
 $t = $texts[$lang] ?? $texts['tr'];
+
+/** --- (YENİ) Restoranın desteklediği diller: RestaurantLanguages + Languages --- */
+$langStmt = $pdo->prepare("
+    SELECT rl.LangCode, rl.IsDefault, l.LangName
+    FROM RestaurantLanguages rl
+    JOIN Restaurants r ON r.RestaurantID = rl.RestaurantID
+    JOIN Languages l ON l.LangCode = rl.LangCode
+    WHERE MD5(r.RestaurantID) = ?
+    ORDER BY rl.IsDefault DESC, l.LangName ASC
+");
+$langStmt->execute([$hash]);
+$supportedLangs = $langStmt->fetchAll(PDO::FETCH_ASSOC);
+
+/** Basit bir bayrak kodu eşlemesi (opsiyonel görsel için). Bulunamazsa dil kodunu kullanır. */
+function flag_code_from_lang($lc) {
+    $lc = strtolower($lc);
+    $map = [
+        'tr'=>'tr','en'=>'gb','de'=>'de','fr'=>'fr','es'=>'es','it'=>'it','nl'=>'nl','ru'=>'ru',
+        'ar'=>'sa','fa'=>'ir','zh'=>'cn','ja'=>'jp','ko'=>'kr','el'=>'gr','he'=>'il','pt'=>'pt','az'=>'az'
+    ];
+    return $map[$lc] ?? $lc;
+}
 ?>
 <!DOCTYPE html>
 <html lang="<?= htmlspecialchars($lang) ?>">
@@ -92,7 +114,7 @@ body {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  <?= $theme === 'dark' ? 'filter:brightness(0.9);' : 'filter:brightness(0.95);' ?> /* 🔆 Daha açık hale getirildi */
+  <?= $theme === 'dark' ? 'filter:brightness(0.9);' : 'filter:brightness(0.95);' ?>
 }
 .hero-overlay {
   position: absolute;
@@ -100,7 +122,7 @@ body {
   width: 100%; height: 100%;
   display: flex; flex-direction: column;
   justify-content: center; align-items: center;
-  background: rgba(0, 0, 0, 0.2); /* 🔆 Eskiden 0.35 idi — şimdi daha açık */
+  background: rgba(0, 0, 0, 0.2);
   color: #fff;
   text-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
 }
@@ -119,10 +141,7 @@ body {
   position: relative;
   z-index: 10;
 }
-.info-card p {
-  margin: 6px 0;
-  font-size: 1rem;
-}
+.info-card p { margin: 6px 0; font-size: 1rem; }
 .menu-buttons {
   display: flex;
   justify-content: center;
@@ -191,14 +210,28 @@ body {
   </div>
 </div>
 
-<!-- Menü butonları -->
+<!-- Menü butonları (DB'den diller) -->
 <div class="menu-buttons">
-  <a href="menu.php?hash=<?= htmlspecialchars($hash) ?>&theme=<?= $theme ?>&lang=tr">
-    <img src="https://flagcdn.com/w20/tr.png" alt="Türk Bayrağı"> Türkçe Menü
-  </a>
-  <a href="menu.php?hash=<?= htmlspecialchars($hash) ?>&theme=<?= $theme ?>&lang=en">
-    <img src="https://flagcdn.com/w20/gb.png" alt="İngiliz Bayrağı"> English Menu
-  </a>
+  <?php if (!empty($supportedLangs)): ?>
+    <?php foreach ($supportedLangs as $L): 
+        $lc   = strtolower($L['LangCode']);
+        $flag = flag_code_from_lang($lc);
+        $label = $L['LangName'] . ' Menu';
+    ?>
+      <a href="menu.php?hash=<?= htmlspecialchars($hash) ?>&theme=<?= htmlspecialchars($theme) ?>&lang=<?= urlencode($lc) ?>">
+        <img src="https://flagcdn.com/w20/<?= htmlspecialchars($flag) ?>.png" alt="<?= htmlspecialchars($L['LangName']) ?>">
+        <?= htmlspecialchars($label) ?>
+      </a>
+    <?php endforeach; ?>
+  <?php else: ?>
+    <!-- Fallback: TR / EN sabit (eski davranış) -->
+    <a href="menu.php?hash=<?= htmlspecialchars($hash) ?>&theme=<?= htmlspecialchars($theme) ?>&lang=tr">
+      <img src="https://flagcdn.com/w20/tr.png" alt="Türkçe"> Türkçe Menü
+    </a>
+    <a href="menu.php?hash=<?= htmlspecialchars($hash) ?>&theme=<?= htmlspecialchars($theme) ?>&lang=en">
+      <img src="https://flagcdn.com/w20/gb.png" alt="English"> English Menu
+    </a>
+  <?php endif; ?>
 </div>
 
 <!-- Bilgiler -->

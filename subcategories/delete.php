@@ -17,22 +17,35 @@ if (!$subId) {
     exit;
 }
 
-// Önce subcategory var mı ve bu restoranın mı kontrol et
+// Alt kategori kontrolü
 $stmt = $pdo->prepare("SELECT * FROM SubCategories WHERE SubCategoryID=? AND RestaurantID=?");
 $stmt->execute([$subId, $restaurantId]);
 $sub = $stmt->fetch();
 
 if ($sub) {
-    // Resim varsa sil
-    if ($sub['ImageURL'] && file_exists('../' . $sub['ImageURL'])) {
-        unlink('../' . $sub['ImageURL']);
-    }
+    try {
+        $pdo->beginTransaction();
 
-    // Subcategory sil
-    $stmtDel = $pdo->prepare("DELETE FROM SubCategories WHERE SubCategoryID=? AND RestaurantID=?");
-    $stmtDel->execute([$subId, $restaurantId]);
+        // 1️⃣ Çeviri kayıtlarını sil
+        $delTr = $pdo->prepare("DELETE FROM SubCategoryTranslations WHERE SubCategoryID=?");
+        $delTr->execute([$subId]);
+
+        // 2️⃣ Resim varsa sil
+        if ($sub['ImageURL'] && file_exists('../' . $sub['ImageURL'])) {
+            unlink('../' . $sub['ImageURL']);
+        }
+
+        // 3️⃣ Alt kategoriyi sil
+        $stmtDel = $pdo->prepare("DELETE FROM SubCategories WHERE SubCategoryID=? AND RestaurantID=?");
+        $stmtDel->execute([$subId, $restaurantId]);
+
+        $pdo->commit();
+    } catch (Exception $e) {
+        $pdo->rollBack();
+        // isteğe göre hata loglanabilir
+    }
 }
 
-// Tekrar list sayfasına yönlendir
+// Liste sayfasına yönlendir
 header("Location: list.php?category_id=" . ($categoryId ?? ''));
 exit;
