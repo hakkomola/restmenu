@@ -216,11 +216,9 @@ $base   = str_replace('/restaurants','', rtrim(dirname($_SERVER['SCRIPT_NAME']),
                       <div class="row g-2">
                         <div class="col-6">
                           <div class="qr-box">
-                            <h6>Light</h6>
+                            <h6><a href="<?= htmlspecialchars($linkLight) ?>" target="_blank">Light Link</a></h6>
                             <img src="<?= htmlspecialchars($qrLight) ?>" alt="Light QR">
-                            <div class="qr-links mt-1">
-                              <a href="<?= htmlspecialchars($linkLight) ?>" target="_blank">Link</a>
-                            </div>
+                         
                             <div class="qr-btns">
                               <a href="table_qr.php?hash=<?= urlencode($publicHash) ?>&theme=light" target="_blank" class="btn btn-sm btn-outline-info w-100">Yazdır</a>
                             </div>
@@ -228,11 +226,9 @@ $base   = str_replace('/restaurants','', rtrim(dirname($_SERVER['SCRIPT_NAME']),
                         </div>
                         <div class="col-6">
                           <div class="qr-box">
-                            <h6>Dark</h6>
+                            <h6><a href="<?= htmlspecialchars($linkDark) ?>" target="_blank">Dark Link</a></h6>
                             <img src="<?= htmlspecialchars($qrDark) ?>" alt="Dark QR">
-                            <div class="qr-links mt-1">
-                              <a href="<?= htmlspecialchars($linkDark) ?>" target="_blank">Link</a>
-                            </div>
+                           
                             <div class="qr-btns">
                               <a href="table_qr.php?hash=<?= urlencode($publicHash) ?>&theme=dark" target="_blank" class="btn btn-sm btn-outline-dark w-100">Yazdır</a>
                             </div>

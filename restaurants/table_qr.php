@@ -124,7 +124,7 @@ $qrImg = $scheme . '://' . $host . $base . '/generate_qr.php?hash=' . urlencode(
   <h2 class="mb-4"><?= htmlspecialchars($table['Name']) ?></h2>
 
   <img src="<?= htmlspecialchars($qrImg) ?>" alt="QR Kod">
-  <div class="mt-3 small text-muted"><?= htmlspecialchars($tableLink) ?></div>
+  <!--  <div class="mt-3 small text-muted"><?= htmlspecialchars($tableLink) ?></div> -->
 
   <div class="mt-4">
     <button class="btn btn-primary" onclick="window.print()">Yazdır</button>
