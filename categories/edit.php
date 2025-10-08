@@ -137,6 +137,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Mevcut resim
 $imageURL = $category['ImageURL'] ?? '';
 
+// 🔹 Navbar dahil et
 include __DIR__ . '/../includes/navbar.php';
 ?>
 
@@ -144,8 +145,10 @@ include __DIR__ . '/../includes/navbar.php';
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Kategori Düzenle</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
 <style>
 .img-thumb-container { position: relative; display: inline-block; margin-right: 10px; }
 .img-thumb-container img { width: 100px; height: 100px; object-fit: cover; border-radius: 4px; }
@@ -213,6 +216,7 @@ include __DIR__ . '/../includes/navbar.php';
     </form>
 </div>
 
+<!-- ✅ Bootstrap bundle en altta (mobil menü açılması için şart) -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

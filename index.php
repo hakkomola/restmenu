@@ -8,93 +8,106 @@ if (isset($_SESSION['restaurant_id'])) {
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-    <link rel="icon" type="image/png" href="images/menufav.ico">
-
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>VovMenu - Restoran Menü Oluştur</title>
+<link rel="icon" type="image/png" href="images/menufav.ico">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+
 <style>
-    body { font-family: Arial, sans-serif; background: #f8f9fa; }
+body {
+    font-family: "Segoe UI", Arial, sans-serif;
+    background: #f8f9fa;
+}
 
-    /* Hero alanı ve overlay */
-    .hero {
-        position: relative;
-        background: url('images/herobackground.jpeg') center/cover no-repeat;
-        color: white;
-        text-align: center;
-        padding: 100px 20px;
-        border-radius: 0 0 30px 30px;
-        margin-bottom: 40px;
-    }
+/* HERO */
+.hero {
+    position: relative;
+    background: linear-gradient(to bottom right, rgba(13,110,253,0.85), rgba(0,0,0,0.55)), 
+                url('images/herobackground.jpeg') center/cover no-repeat;
+    color: #fff;
+    text-align: center;
+    padding: 110px 25px;
+    border-radius: 0 0 40px 40px;
+    margin-bottom: 60px;
+}
+.hero h1 {
+    font-weight: 700;
+    font-size: 2.6rem;
+}
+.hero p {
+    font-size: 1.2rem;
+    color: #f1f1f1;
+}
+.hero .btn {
+    margin: 0.3rem;
+}
 
-    /* Overlay ekleniyor */
-    .hero::before {
-        content: "";
-        position: absolute;
-        top: 0; left: 0; right: 0; bottom: 0;
-        background-color: rgba(0,0,0,0.4); /* yarı saydam karartma */
-        border-radius: 0 0 30px 30px;
-        z-index: 0;
-    }
+/* Feature Cards */
+.feature-card {
+    border-radius: 16px;
+    padding: 30px 20px;
+    background: #fff;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    transition: all 0.25s ease-in-out;
+    text-align: center;
+}
+.feature-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 18px rgba(0,0,0,0.08);
+}
+.feature-card i {
+    font-size: 2.8rem;
+    color: #0d6efd;
+    margin-bottom: 15px;
+}
 
-    .hero h1, .hero p, .hero a {
-        position: relative;
-        z-index: 1; /* overlay üstünde görünmesi için */
-        text-shadow: 0 2px 6px rgba(0,0,0,0.5);
-    }
+/* Demo Card */
+.demo-card {
+    border-radius: 20px;
+    padding: 40px 30px;
+    background: #ffffff;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.06);
+    transition: 0.3s;
+}
+.demo-card:hover {
+    transform: translateY(-3px);
+}
+.demo-card .btn {
+    font-size: 1.1rem;
+    padding: 12px 28px;
+}
 
-    .hero h1 { font-weight: bold; font-size: 3rem; }
-
-    /* Özellik kartları */
-    .feature-card {
-        border-radius: 20px;
-        padding: 30px 20px;
-        background: white;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-        transition: transform 0.2s;
-        text-align: center;
-    }
-    .feature-card:hover { transform: scale(1.05); }
-    .feature-card i { font-size: 3rem; color: #ff7e5f; margin-bottom: 15px; }
-
-    /* Demo Menü Kartı */
-    .demo-card { 
-        border-radius: 20px; 
-        padding: 30px; 
-        background: #fff3e0; 
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1); 
-    }
-
-    footer { 
-        margin-top: 50px; 
-        padding: 20px; 
-        text-align: center; 
-        background: #343a40; 
-        color: white; 
-        border-radius: 20px 20px 0 0; 
-    }
+/* Footer */
+footer {
+    margin-top: 60px;
+    padding: 25px 15px;
+    text-align: center;
+    background: #fff;
+    color: #444;
+    box-shadow: 0 -2px 6px rgba(0,0,0,0.05);
+    border-top: 1px solid #e5e5e5;
+}
 </style>
 </head>
+
 <body>
 
-<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-    <div class="container">
-        <a class="navbar-brand" href="#">Vov Menu</a>
-        <div class="d-flex">
-            <a href="restaurants/login.php" class="btn btn-light me-2">Giriş Yap</a>
-            <a href="restaurants/register.php" class="btn btn-outline-light">Üye Ol</a>
-        </div>
-    </div>
-</nav>
+<?php include __DIR__ . '/includes/mainnavbar.php'; ?>
 
-<!-- Hero Alanı -->
+<!-- HERO -->
 <div class="hero">
-    <h1>Kendi Restoran Menünüzü VovMenu ile Ücretsiz Oluşturun</h1>
-    <p class="lead mb-4">Menülerinizi kolayca ekleyin, kategorilere ayırın ve müşterilerinize gösterin.</p>
-    <a href="restaurants/register.php" class="btn btn-light btn-lg me-2">Hemen Üye Ol</a>
-    <a href="restaurants/login.php" class="btn btn-outline-light btn-lg">Giriş Yap</a>
+    <div class="container">
+        <h1>Kendi Restoran Menünüzü Ücretsiz Oluşturun</h1>
+        <p class="lead mb-4">Kategoriler ekleyin, menülerinizi düzenleyin ve müşterilerinize dijital menü sunun.</p>
+        <a href="restaurants/register.php" class="btn btn-light btn-lg">
+            <i class="bi bi-person-plus me-1"></i> Hemen Üye Ol
+        </a>
+        <a href="restaurants/login.php" class="btn btn-outline-light btn-lg">
+            <i class="bi bi-box-arrow-in-right me-1"></i> Giriş Yap
+        </a>
+    </div>
 </div>
 
 <!-- Özellikler -->
@@ -103,38 +116,41 @@ if (isset($_SESSION['restaurant_id'])) {
         <div class="col-md-4">
             <div class="feature-card">
                 <i class="bi bi-speedometer2"></i>
-                <h3>Kolay Kullanım</h3>
-                <p>Basit arayüz ile menülerinizi hızlıca oluşturabilirsiniz.</p>
+                <h4 class="fw-semibold">Kolay Kullanım</h4>
+                <p>Basit arayüz sayesinde menülerinizi saniyeler içinde oluşturabilirsiniz.</p>
             </div>
         </div>
         <div class="col-md-4">
             <div class="feature-card">
                 <i class="bi bi-cash-stack"></i>
-                <h3>Ücretsiz</h3>
-                <p>Herhangi bir ücret ödemeden restoran menünüzü oluşturun ve yönetin.</p>
+                <h4 class="fw-semibold">Ücretsiz</h4>
+                <p>Herhangi bir ücret ödemeden restoran menünüzü dijital hale getirin.</p>
             </div>
         </div>
         <div class="col-md-4">
             <div class="feature-card">
                 <i class="bi bi-phone"></i>
-                <h3>Responsive</h3>
-                <p>Mobil ve tablet cihazlarda da mükemmel görünüm ve kullanım deneyimi.</p>
+                <h4 class="fw-semibold">Mobil Uyumlu</h4>
+                <p>Telefon, tablet ve bilgisayarda mükemmel görünüm.</p>
             </div>
         </div>
     </div>
 </section>
 
-<!-- Demo Menü Linki -->
+<!-- Demo Menü -->
 <section class="container text-center py-5">
-    <div class="demo-card mx-auto" style="max-width: 500px;">
-        <h4 class="card-title mb-3"><i class="bi bi-book"></i> Örnek Menü</h4>
-        <p class="card-text mb-4">Vov Menu kullanılarak oluşturulmuş örnek menüyü inceleyebilirsiniz.</p>
-        <a href="restaurant_info.php?hash=c4ca4238a0b923820dcc509a6f75849b&theme=dark&lang=tr" class="btn btn-success btn-lg" target="_blank">Menüyü Gör</a>
+    <div class="demo-card mx-auto" style="max-width: 520px;">
+        <h4 class="mb-3"><i class="bi bi-book"></i> Örnek Menü</h4>
+        <p class="text-muted mb-4">VovMenu ile hazırlanmış örnek menüyü inceleyin.</p>
+        <a href="restaurant_info.php?hash=65a7e0bc3485b8738c6d7387&theme=dark" 
+           class="btn btn-success btn-lg" target="_blank">
+           Menüyü Gör
+        </a>
     </div>
 </section>
 
 <footer>
-    &copy; <?= date('Y') ?> VovMenu
+    &copy; <?= date('Y') ?> VovMenu — Tüm Hakları Saklıdır
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>

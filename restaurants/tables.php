@@ -10,6 +10,7 @@ if (!isset($_SESSION['restaurant_id'])) {
 $restaurantId = $_SESSION['restaurant_id'];
 $message = '';
 $error = '';
+include __DIR__ . '/../includes/navbar.php';
 
 /**
  * PUBLIC HASH ÜRETİMİ
@@ -88,69 +89,34 @@ $base   = str_replace('/restaurants','', rtrim(dirname($_SERVER['SCRIPT_NAME']),
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <style>
     .table-actions form { display:inline-block; margin-right:.25rem; }
-    ..qr-box {
-  border: 1px solid #dee2e6;
-  border-radius: 10px;
-  padding: 10px;
-  text-align: center;
-  background: #fafafa;
-  height: 100%;
-}
-.qr-box h6 {
-  font-size: 0.9rem;
-  font-weight: 600;
-  margin-bottom: 6px;
-}
-.qr-box img {
-  width: 90px;
-  height: 90px;
-  object-fit: contain;
-  border: 1px solid #ddd;
-  border-radius: 5px;
-  background: #fff;
-  padding: 3px;
-}
-.qr-btns a {
-  display: block;
-  margin-top: 4px;
-  font-size: 0.8rem;
-}
-.qr-links {
-  font-size: 0.8rem;
-  word-break: break-all;
-}
-
-/* 🔸 Mobil düzen için ekleme */
-@media (max-width: 768px) {
-  .qr-box {
-    margin-bottom: 10px;
-  }
-  .row.g-2 {
-    display: flex;
-    flex-direction: column;
-  }
-  .row.g-2 .col-6 {
-    width: 100%;
-  }
-  .qr-box img {
-    width: 120px;
-    height: 120px;
-  }
-}
-
+    .qr-box {
+      border: 1px solid #dee2e6;
+      border-radius: 10px;
+      padding: 10px;
+      text-align: center;
+      background: #fafafa;
+      height: 100%;
+    }
+    .qr-box h6 { font-size: 0.9rem; font-weight: 600; margin-bottom: 6px; }
+    .qr-box img {
+      width: 90px; height: 90px; object-fit: contain;
+      border: 1px solid #ddd; border-radius: 5px;
+      background: #fff; padding: 3px;
+    }
+    .qr-btns a { display: block; margin-top: 4px; font-size: 0.8rem; }
+    .qr-links { font-size: 0.8rem; word-break: break-all; }
+    @media (max-width: 768px) {
+      .qr-box { margin-bottom: 10px; }
+      .row.g-2 { flex-direction: column; }
+      .row.g-2 .col-6 { width: 100%; }
+      .qr-box img { width: 120px; height: 120px; }
+    }
   </style>
 </head>
+
 <body>
 
-<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-  <div class="container">
-    <a class="navbar-brand" href="../restaurants/dashboard.php">Ana Sayfa</a>
-    <div class="d-flex">
-      <span class="navbar-text me-3">Hoşgeldin, <?= htmlspecialchars($_SESSION['restaurant_name'] ?? 'Restoran') ?></span>
-      <a href="../restaurants/logout.php" class="btn btn-light">Çıkış Yap</a>
-    </div>
-  </div>
-</nav>
+
 
 <div class="container py-4">
   <h1 class="h4 mb-3">Masa Tanımları</h1>
@@ -264,6 +230,7 @@ $base   = str_replace('/restaurants','', rtrim(dirname($_SERVER['SCRIPT_NAME']),
     </div>
   </div>
 </div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
 </body>
 </html>

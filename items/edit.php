@@ -320,6 +320,8 @@ include __DIR__ . '/../includes/navbar.php';
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Menü Öğesi Düzenle</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+
 <style>
 .option-row { display: flex; gap: 10px; margin-bottom: 8px; align-items: center; }
 .option-row input { flex: 1; }
@@ -336,6 +338,58 @@ include __DIR__ . '/../includes/navbar.php';
   background:#dc3545; color:#fff; border:none;
   display:flex; align-items:center; justify-content:center;
   font-weight:700; line-height:1; cursor:pointer;
+
+  /* ==== Yumuşak görsel düzen iyileştirmeleri (işlevsel olmayan) ==== */
+
+/* Sekmeler okunaklı dursun */
+.nav-tabs .nav-link {
+  border-radius: 8px 8px 0 0;
+  font-weight: 500;
+}
+.tab-content {
+  border: 1px solid #dee2e6;
+  border-top: none;
+  border-radius: 0 0 10px 10px;
+  padding: 16px;
+  background: #fff;
+}
+
+/* Seçenek satırları mobilde taşmasın */
+.option-row {
+  flex-wrap: wrap;
+}
+.option-row input {
+  min-width: 140px; /* dar ekranda kırılma için alt limit */
+}
+
+/* Resim ızgarası daha dengeli */
+.image-grid {
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 12px;
+}
+.image-card {
+  border-radius: 10px;
+  transition: transform .15s ease-in-out;
+  box-shadow: 0 2px 6px rgba(0,0,0,.05);
+}
+.image-card:hover {
+  transform: scale(1.02);
+}
+
+/* Silme butonu daha tıklanabilir kalsın */
+.image-card a.del,
+.image-card .img-remove {
+  width: 28px; height: 28px;
+  font-size: 16px;
+}
+
+/* Küçük ekran ayarları */
+@media (max-width: 576px) {
+  .option-row { gap: 8px; }
+  .option-row input { flex: 1 1 100%; }
+  .tab-content { padding: 12px; }
+}
+
 }
 .image-card .img-remove:focus { outline:2px solid rgba(220,53,69,.4); }
 </style>

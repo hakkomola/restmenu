@@ -2,7 +2,6 @@
 // items/list.php
 session_start();
 require_once __DIR__ . '/../db.php';
-include __DIR__ . '/../includes/navbar.php';
 
 if (!isset($_SESSION['restaurant_id'])) {
     header('Location: ../restaurants/dashboard.php');
@@ -55,14 +54,19 @@ $menuItems = $stmt->fetchAll();
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Menü Yönetimi</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
 <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
 <style>
+    body { background: #f8f9fa; font-family: "Segoe UI", Arial, sans-serif; }
     .sortable-placeholder { height: 60px; background: #f0f0f0; border: 2px dashed #ccc; }
     .ui-sortable-helper { background: #e9ecef; }
-    .drag-handle { cursor: move; }
+    .drag-handle { cursor: move; text-align: center; width: 40px; }
 </style>
 </head>
 <body>
+
+<?php include __DIR__ . '/../includes/navbar.php'; ?>
+
 <div class="container mt-5">
     <h2 class="mb-4">Menü Öğeleri</h2>
 
@@ -87,48 +91,60 @@ $menuItems = $stmt->fetchAll();
                 <?php endforeach; ?>
             </select>
         </div>
-        <div class="col-md-4">
-            <a href="create.php" class="btn btn-success">Yeni Menü Öğesi Ekle</a>
-            <a href="../restaurants/dashboard.php" class="btn btn-secondary">Geri</a>
+        <div class="col-md-4 text-end">
+            <a href="create.php" class="btn btn-success"><i class="bi bi-plus-circle"></i> Yeni Menü Öğesi</a>
+            <a href="../restaurants/dashboard.php" class="btn btn-secondary"><i class="bi bi-arrow-left"></i> Geri</a>
         </div>
     </div>
 
-    <table class="table table-bordered" id="menu-table">
-        <thead>
-            <tr>
-                <th>#</th>
-                <th>Menü Adı</th>
-                <th>Kategori</th>
-                <th>Alt Kategori</th>
-                <th>Açıklama</th>
-                <th>Fiyat</th>
-                <th>İşlemler</th>
-            </tr>
-        </thead>
-        <tbody id="sortable">
-            <?php foreach ($menuItems as $item): ?>
-            <tr data-id="<?= $item['MenuItemID'] ?>">
-                <td class="drag-handle">☰</td>
-                <td><?= htmlspecialchars($item['MenuName']) ?></td>
-                <td><?= htmlspecialchars($item['CategoryName'] ?? '-') ?></td>
-                <td><?= htmlspecialchars($item['SubCategoryName'] ?? '-') ?></td>
-                <td><?= htmlspecialchars($item['Description']) ?></td>
-                <td><?= number_format($item['Price'], 2) ?> ₺</td>
-                <td>
-                    <a href="edit.php?id=<?= $item['MenuItemID'] ?>" class="btn btn-primary btn-sm">Düzenle</a>
-                    <a href="delete.php?id=<?= $item['MenuItemID'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('Silmek istediğinize emin misiniz?')">Sil</a>
-                </td>
-            </tr>
-            <?php endforeach; ?>
-        </tbody>
-    </table>
+    <div class="table-responsive">
+        <table class="table table-bordered align-middle" id="menu-table">
+            <thead class="table-light">
+                <tr>
+                    <th style="width:50px;">#</th>
+                    <th>Menü Adı</th>
+                    <th>Kategori</th>
+                    <th>Alt Kategori</th>
+                    <th>Açıklama</th>
+                    <th>Fiyat</th>
+                    <th style="width:200px;">İşlemler</th>
+                </tr>
+            </thead>
+            <tbody id="sortable">
+                <?php foreach ($menuItems as $item): ?>
+                <tr data-id="<?= $item['MenuItemID'] ?>">
+                    <td class="drag-handle">☰</td>
+                    <td><?= htmlspecialchars($item['MenuName']) ?></td>
+                    <td><?= htmlspecialchars($item['CategoryName'] ?? '-') ?></td>
+                    <td><?= htmlspecialchars($item['SubCategoryName'] ?? '-') ?></td>
+                    <td><?= htmlspecialchars($item['Description']) ?></td>
+                    <td><?= number_format($item['Price'], 2) ?> ₺</td>
+                    <td>
+                        <a href="edit.php?id=<?= $item['MenuItemID'] ?>" class="btn btn-primary btn-sm">
+                            <i class="bi bi-pencil-square"></i> Düzenle
+                        </a>
+                        <a href="delete.php?id=<?= $item['MenuItemID'] ?>" class="btn btn-danger btn-sm"
+                           onclick="return confirm('Silmek istediğinize emin misiniz?')">
+                           <i class="bi bi-trash"></i> Sil
+                        </a>
+                    </td>
+                </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
 </div>
 
+<!-- JS -->
 <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
 <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui-touch-punch/0.2.3/jquery.ui.touch-punch.min.js"></script>
+<!-- ✅ Bootstrap bundle (mobil menü açılması için gerekli) -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
 <script>
 $(function(){
+    // Drag & drop sıralama
     $("#sortable").sortable({
         placeholder: "sortable-placeholder",
         handle: ".drag-handle",
@@ -141,15 +157,9 @@ $(function(){
     });
 
     // Filtre değişince sayfayı yeniden yükle
-    $('#categoryFilter').change(function(){
-        let cat = $(this).val();
-        let sub = $('#subcategoryFilter').val();
-        window.location.href = '?category=' + cat + '&subcategory=' + sub;
-    });
-
-    $('#subcategoryFilter').change(function(){
+    $('#categoryFilter, #subcategoryFilter').change(function(){
         let cat = $('#categoryFilter').val();
-        let sub = $(this).val();
+        let sub = $('#subcategoryFilter').val();
         window.location.href = '?category=' + cat + '&subcategory=' + sub;
     });
 });

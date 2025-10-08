@@ -31,7 +31,7 @@ if (!$sub) {
     exit;
 }
 
-// Tüm ana kategorileri getir
+// Tüm ana kategoriler
 $catStmt = $pdo->prepare("SELECT CategoryID, CategoryName FROM MenuCategories WHERE RestaurantID = ? ORDER BY CategoryName ASC");
 $catStmt->execute([$restaurantId]);
 $categories = $catStmt->fetchAll(PDO::FETCH_ASSOC);
@@ -125,7 +125,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         ':name' => $name
                     ]);
                 } else {
-                    // boş gönderildiyse sil
+                    // Boş gönderildiyse sil
                     $del = $pdo->prepare("DELETE FROM SubCategoryTranslations WHERE SubCategoryID=? AND LangCode=?");
                     $del->execute([$id, $lc]);
                 }
@@ -140,8 +140,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
-
-include __DIR__ . '/../includes/navbar.php';
 ?>
 <!DOCTYPE html>
 <html lang="tr">
@@ -150,6 +148,7 @@ include __DIR__ . '/../includes/navbar.php';
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Alt Kategori Düzenle</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
 <style>
 .img-container { position: relative; display: inline-block; margin-bottom: 10px; }
 .img-container img { height: 100px; object-fit: cover; display: block; border-radius: 5px; }
@@ -171,6 +170,9 @@ include __DIR__ . '/../includes/navbar.php';
 </style>
 </head>
 <body>
+
+<?php include __DIR__ . '/../includes/navbar.php'; ?>
+
 <div class="container mt-5" style="max-width:700px;">
     <h2>Alt Kategori Düzenle</h2>
 
@@ -248,6 +250,8 @@ include __DIR__ . '/../includes/navbar.php';
         </div>
     </form>
 </div>
+
+<!-- ✅ Bootstrap bundle (mobil menü açılması için gerekli) -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

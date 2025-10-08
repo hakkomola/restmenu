@@ -7,7 +7,7 @@ if (!isset($_SESSION['restaurant_id'])) {
     exit;
 }
 
-include __DIR__ . '/../includes/mainnavbar.php';
+include __DIR__ . '/../includes/navbar.php';
 ?>
 <!DOCTYPE html>
 <html lang="tr">

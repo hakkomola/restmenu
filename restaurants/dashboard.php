@@ -12,12 +12,10 @@ $restaurantId = $_SESSION['restaurant_id'];
 $restaurantName = $_SESSION['restaurant_name'] ?? 'Restoran';
 
 // Menü hashli linkleri oluştur
-$hash = md5($restaurantId); // Restoran ID’den tek hash
+$hash = md5($restaurantId);
 $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
 $host = $_SERVER['HTTP_HOST'];
-$base = str_replace('/restaurants','', rtrim(dirname($_SERVER['SCRIPT_NAME']), '/\\')); // /restmenu
-
-
+$base = str_replace('/restaurants', '', rtrim(dirname($_SERVER['SCRIPT_NAME']), '/\\'));
 
 // menu.php
 $menuLink = $scheme . '://' . $host . $base . '/restaurant_info.php?hash=' . $hash . '&theme=light&lang=tr';
@@ -27,7 +25,6 @@ $qrImg = $scheme . '://' . $host . $base . '/generate_qr.php?hash=' . $hash;
 $menu2Link = $scheme . '://' . $host . $base . '/restaurant_info.php?hash=' . $hash . '&theme=dark&lang=tr';
 $qr2Img = $scheme . '://' . $host . $base . '/generate_qr.php?hash=' . $hash . '&menu=2';
 ?>
-
 <!DOCTYPE html>
 <html lang="tr">
 <head>
@@ -35,114 +32,145 @@ $qr2Img = $scheme . '://' . $host . $base . '/generate_qr.php?hash=' . $hash . '
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dashboard - <?= htmlspecialchars($restaurantName) ?></title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
 <style>
-.qr-img { height: 150px; }
+body {
+    background-color: #f7f8fa;
+}
+.navbar {
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+}
+.restaurant-header {
+    background: #fff;
+    border-radius: 12px;
+    padding: 1.2rem;
+    text-align: center;
+    margin-top: 1.5rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+.restaurant-header h4 {
+    margin: 0;
+    color: #333;
+    font-weight: 600;
+}
+.card {
+    border: none;
+    border-radius: 16px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    transition: all 0.2s ease-in-out;
+}
+.card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+}
+.card .bi {
+    font-size: 2.2rem;
+    color: #0d6efd;
+    margin-bottom: 10px;
+}
+footer {
+    background: #fff;
+    box-shadow: 0 -2px 6px rgba(0,0,0,0.05);
+}
+.qr-img {
+    height: 140px;
+    border-radius: 10px;
+}
+@media (max-width: 768px) {
+    .card .bi {
+        font-size: 1.8rem;
+    }
+}
 </style>
 </head>
 <body>
 
-<div class="container mt-5">
-   
+<div class="container">
 
+    <div class="restaurant-header">
+        <h4>Restoran Adı: <?= htmlspecialchars($restaurantName) ?></h4>
+    </div>
 
-    <div class="row g-4 mt-4">
-        <div class="col-md-6">
-            <div class="card text-center">
+    <div class="row g-4">
+        <div class="col-md-6 col-lg-4">
+            <div class="card text-center p-3">
                 <div class="card-body">
+                    <i class="bi bi-list-nested"></i>
                     <h5 class="card-title">Kategoriler</h5>
-                    <p class="card-text">Kendi menü kategorilerinizi ekleyebilir, düzenleyebilir veya silebilirsiniz.</p>
-                    <a href="../categories/list.php" class="btn btn-primary">Kategorileri Yönet</a>
+                    <p class="card-text text-muted">Menü kategorilerinizi ekleyin, düzenleyin veya silin.</p>
+                    <a href="../categories/list.php" class="btn btn-outline-primary">Kategorileri Yönet</a>
                 </div>
             </div>
         </div>
-        <div class="col-md-6">
-            <div class="card text-center">
+        <div class="col-md-6 col-lg-4">
+            <div class="card text-center p-3">
                 <div class="card-body">
+                    <i class="bi bi-diagram-3"></i>
                     <h5 class="card-title">Alt Kategoriler</h5>
-                    <p class="card-text">Her kategori için alt kategoriler oluşturabilir, düzenleyebilir veya silebilirsiniz.</p>
-                    <a href="../subcategories/list.php" class="btn btn-primary">Alt Kategorileri Yönet</a>
+                    <p class="card-text text-muted">Her kategoriye ait alt kategoriler oluşturabilirsiniz.</p>
+                    <a href="../subcategories/list.php" class="btn btn-outline-primary">Alt Kategorileri Yönet</a>
                 </div>
             </div>
         </div>
-        <div class="col-md-6">
-            <div class="card text-center">
+        <div class="col-md-6 col-lg-4">
+            <div class="card text-center p-3">
                 <div class="card-body">
+                    <i class="bi bi-card-text"></i>
                     <h5 class="card-title">Menü Öğeleri</h5>
-                    <p class="card-text">Menü öğelerinizi ekleyin, düzenleyin veya silin. Birden fazla resim ekleyebilirsiniz.</p>
-                    <a href="../items/list.php" class="btn btn-primary">Menü Öğelerini Yönet</a>
+                    <p class="card-text text-muted">Menü öğelerinizi yönetin, açıklama ve görsel ekleyin.</p>
+                    <a href="../items/list.php" class="btn btn-outline-primary">Menü Öğelerini Yönet</a>
                 </div>
             </div>
         </div>
-        <div class="col-md-6">
-            <div class="card text-center">
+        <div class="col-md-6 col-lg-4">
+            <div class="card text-center p-3">
                 <div class="card-body">
+                    <i class="bi bi-lightning-charge"></i>
                     <h5 class="card-title">Kolay Menü</h5>
-                    <p class="card-text">Önceden hazırlanmış bir örnek menü üzerinden işlemlerinizi daha hızlı ve kolay yapabilirsiniz.</p>
-                    <a href="menu_tree.php" class="btn btn-primary">Kolay Menü Oluştur</a>
+                    <p class="card-text text-muted">Hazır örnek menü üzerinden hızlıca düzenleme yapın.</p>
+                    <a href="menu_tree.php" class="btn btn-outline-primary">Kolay Menü Oluştur</a>
                 </div>
             </div>
         </div>
-        <div class="col-md-6">
-            <div class="card text-center">
-                <div class="card-body">
-                    <h5 class="card-title">Şifre Değiştirme</h5>
-                    <p class="card-text">Şifrenizi değiştirebilirsiniz.</p>
-                    <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#changePassModal">Şifre Değiştir</button>
-                </div>
-            </div>
+       <div class="col-md-6 col-lg-4">
+    <div class="card text-center p-3">
+        <div class="card-body">
+            <i class="bi bi-lock"></i>
+            <h5 class="card-title">Şifre Değiştirme</h5>
+            <p class="card-text text-muted">Hesap şifrenizi güvenli şekilde değiştirebilirsiniz.</p>
+            <a href="../restaurants/change_password.php" class="btn btn-outline-warning">
+                Şifre Değiştir
+            </a>
         </div>
-        <div class="col-md-6">
-            <div class="card text-center">
+    </div>
+</div>
+
+        <div class="col-md-6 col-lg-4">
+            <div class="card text-center p-3">
                 <div class="card-body">
+                    <i class="bi bi-building"></i>
                     <h5 class="card-title">Restoran Bilgileri</h5>
-                    <p class="card-text">Restoran Bilgilerinizi düzenleyin.</p>
-                    <a href="../restaurants/profile.php" class="btn btn-warning">Restoran Bilgilerim</a>
+                    <p class="card-text text-muted">Restoran detay bilgilerinizi düzenleyin.</p>
+                    <a href="../restaurants/profile.php" class="btn btn-outline-warning">Restoran Bilgilerim</a>
                 </div>
             </div>
         </div>
-         <div class="col-md-6">
-            <div class="card text-center">
+        <div class="col-md-6 col-lg-4">
+            <div class="card text-center p-3">
                 <div class="card-body">
+                    <i class="bi bi-grid-3x3-gap"></i>
                     <h5 class="card-title">Restoran Masaları</h5>
-                    <p class="card-text">Restoran masalarınızı oluşturun/düzenleyin.</p>
-                    <a href="../restaurants/tables.php" class="btn btn-warning">Restoran Masaları</a>
+                    <p class="card-text text-muted">Masalarınızı oluşturun ve QR kodlarını yönetin.</p>
+                    <a href="../restaurants/tables.php" class="btn btn-outline-warning">Restoran Masaları</a>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Şifre Değiştir Modal -->
-<div class="modal fade" id="changePassModal" tabindex="-1" aria-labelledby="changePassModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
-    <form action="change_password.php" method="post" class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="changePassModalLabel">Şifre Değiştir</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Kapat"></button>
-      </div>
-      <div class="modal-body">
-          <div class="mb-3">
-              <label for="oldPassword" class="form-label">Mevcut Şifre</label>
-              <input type="password" class="form-control" name="oldPassword" id="oldPassword" required>
-          </div>
-          <div class="mb-3">
-              <label for="newPassword" class="form-label">Yeni Şifre</label>
-              <input type="password" class="form-control" name="newPassword" id="newPassword" required>
-          </div>
-          <div class="mb-3">
-              <label for="confirmPassword" class="form-label">Yeni Şifre (Tekrar)</label>
-              <input type="password" class="form-control" name="confirmPassword" id="confirmPassword" required>
-          </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
-        <button type="submit" class="btn btn-primary">Şifreyi Güncelle</button>
-      </div>
-    </form>
-  </div>
-</div>
 
-<footer class="bg-light text-center py-3 mt-5">
+<footer class="text-center py-3 mt-5">
     &copy; <?= date('Y') ?> Restoran Menü Uygulaması
 </footer>
 
