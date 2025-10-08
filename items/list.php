@@ -46,26 +46,14 @@ $sql .= " ORDER BY mi.SortOrder ASC, mi.MenuName ASC";
 $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
 $menuItems = $stmt->fetchAll();
-?>
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Menü Yönetimi</title>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
-<link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
-<style>
-    body { background: #f8f9fa; font-family: "Segoe UI", Arial, sans-serif; }
-    .sortable-placeholder { height: 60px; background: #f0f0f0; border: 2px dashed #ccc; }
-    .ui-sortable-helper { background: #e9ecef; }
-    .drag-handle { cursor: move; text-align: center; width: 40px; }
-</style>
-</head>
-<body>
 
-<?php include __DIR__ . '/../includes/navbar.php'; ?>
+// 🔹 HEADER ve NAVBAR dahil
+include __DIR__ . '/../includes/header.php';
+include __DIR__ . '/../includes/navbar.php';
+
+
+?>
+
 
 <div class="container mt-5">
     <h2 class="mb-4">Menü Öğeleri</h2>
@@ -135,13 +123,6 @@ $menuItems = $stmt->fetchAll();
     </div>
 </div>
 
-<!-- JS -->
-<script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
-<script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui-touch-punch/0.2.3/jquery.ui.touch-punch.min.js"></script>
-<!-- ✅ Bootstrap bundle (mobil menü açılması için gerekli) -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-
 <script>
 $(function(){
     // Drag & drop sıralama
@@ -164,5 +145,5 @@ $(function(){
     });
 });
 </script>
-</body>
-</html>
+
+<?php include __DIR__ . '/../includes/footer.php'; ?>

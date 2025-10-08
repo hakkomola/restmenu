@@ -10,7 +10,7 @@ if (!isset($_SESSION['restaurant_id'])) {
 $restaurantId = $_SESSION['restaurant_id'];
 $message = '';
 $error = '';
-include __DIR__ . '/../includes/navbar.php';
+
 
 /**
  * PUBLIC HASH ÜRETİMİ
@@ -79,42 +79,12 @@ $tables = $stmt->fetchAll(PDO::FETCH_ASSOC);
 $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
 $host   = $_SERVER['HTTP_HOST'];
 $base   = str_replace('/restaurants','', rtrim(dirname($_SERVER['SCRIPT_NAME']), '/\\'));
-?>
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-  <meta charset="utf-8">
-  <title>Masalar | Restoran</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <style>
-    .table-actions form { display:inline-block; margin-right:.25rem; }
-    .qr-box {
-      border: 1px solid #dee2e6;
-      border-radius: 10px;
-      padding: 10px;
-      text-align: center;
-      background: #fafafa;
-      height: 100%;
-    }
-    .qr-box h6 { font-size: 0.9rem; font-weight: 600; margin-bottom: 6px; }
-    .qr-box img {
-      width: 90px; height: 90px; object-fit: contain;
-      border: 1px solid #ddd; border-radius: 5px;
-      background: #fff; padding: 3px;
-    }
-    .qr-btns a { display: block; margin-top: 4px; font-size: 0.8rem; }
-    .qr-links { font-size: 0.8rem; word-break: break-all; }
-    @media (max-width: 768px) {
-      .qr-box { margin-bottom: 10px; }
-      .row.g-2 { flex-direction: column; }
-      .row.g-2 .col-6 { width: 100%; }
-      .qr-box img { width: 120px; height: 120px; }
-    }
-  </style>
-</head>
 
-<body>
+// 🔹 HEADER ve NAVBAR dahil
+include __DIR__ . '/../includes/header.php';
+include __DIR__ . '/../includes/navbar.php';
+?>
+
 
 
 
@@ -232,5 +202,5 @@ $base   = str_replace('/restaurants','', rtrim(dirname($_SERVER['SCRIPT_NAME']),
 </div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
-</body>
-</html>
+
+<?php include __DIR__ . '/../includes/footer.php'; ?>

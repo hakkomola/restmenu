@@ -24,27 +24,12 @@ if ($selectedCategoryId) {
 } else {
     $subcategories = [];
 }
-?>
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Alt Kategoriler</title>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
-<link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
-<style>
-    body { background: #f8f9fa; font-family: "Segoe UI", Arial, sans-serif; }
-    .sortable-placeholder { height: 60px; background: #f0f0f0; border: 2px dashed #ccc; }
-    .ui-sortable-helper { background: #e9ecef; }
-    .drag-handle { cursor: move; }
-    .img-thumb { height: 50px; object-fit: cover; border-radius: 6px; }
-</style>
-</head>
-<body>
 
-<?php include __DIR__ . '/../includes/navbar.php'; ?>
+// 🔹 HEADER ve NAVBAR dahil
+include __DIR__ . '/../includes/header.php';
+include __DIR__ . '/../includes/navbar.php';
+
+?>
 
 <div class="container mt-5">
     <h2 class="mb-4">Alt Kategoriler</h2>
@@ -111,8 +96,6 @@ if ($selectedCategoryId) {
 <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
 <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui-touch-punch/0.2.3/jquery.ui.touch-punch.min.js"></script>
-<!-- ✅ Bootstrap bundle (navbar mobil menü için gerekli) -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 $(function(){
     // Kategori değişince sayfayı reload et
@@ -134,5 +117,6 @@ $(function(){
     });
 });
 </script>
-</body>
-</html>
+
+
+<?php include __DIR__ . '/../includes/footer.php'; ?>

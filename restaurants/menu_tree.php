@@ -7,44 +7,13 @@ if (!isset($_SESSION['restaurant_id'])) {
     exit;
 }
 
+// 🔹 HEADER ve NAVBAR dahil
+include __DIR__ . '/../includes/header.php';
 include __DIR__ . '/../includes/navbar.php';
+
 ?>
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-<meta charset="UTF-8">
-<title>Restoran Menü Ağacı</title>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
-<style>
-body { background: #f8f9fa; }
 
-.tree ul { list-style:none; margin:0; padding-left:1.2rem; border-left:1px solid #dee2e6; }
-.tree li { margin:6px 0; position:relative; }
-.tree li::before { content:""; position:absolute; top:0; left:-1.2rem; height:100%; border-left:1px solid #dee2e6; }
 
-.node { display:flex; align-items:center; gap:8px; padding:5px 8px; border-radius:6px; cursor:pointer; transition: background 0.2s; }
-.node:hover { background-color:#eef1f4; }
-
-input[type="checkbox"] { width:16px; height:16px; accent-color:#0d6efd; }
-
-.category > .node i.bi-folder2-open { color:#0d6efd; }
-.subcategory > .node i.bi-folder { color:#198754; }
-.item > .node i.bi-file-earmark-text { color:#6c757d; }
-
-.collapsed > ul { display:none; }
-.collapsed > .node i.toggle { transform:rotate(-90deg); }
-
-.level1 > .node { padding-left:8px; font-weight:600; }
-.level2 > .node { padding-left:24px; }
-.level3 > .node { padding-left:40px; }
-.level4 > .node { padding-left:56px; }
-
-/* Kaydet buton pozisyonu */
-#saveBtn { margin-bottom: 15px; }
-</style>
-</head>
-<body>
 <div class="container mt-4">
 <div class="card shadow-sm">
 <div class="card-body">
@@ -173,5 +142,6 @@ $(function(){
     });
 });
 </script>
-</body>
-</html>
+
+
+<?php include __DIR__ . '/../includes/footer.php'; ?>

@@ -99,19 +99,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
-?>
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Yeni Alt Kategori Ekle</title>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
-</head>
-<body>
 
-<?php include __DIR__ . '/../includes/navbar.php'; ?>
+// 🔹 HEADER ve NAVBAR dahil
+include __DIR__ . '/../includes/header.php';
+include __DIR__ . '/../includes/navbar.php';
+
+
+?>
+
+
 
 <div class="container mt-5" style="max-width: 700px;">
     <h2 class="mb-4">Yeni Alt Kategori Ekle</h2>
@@ -172,13 +168,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
         <div class="card-footer d-flex gap-2">
             <button type="submit" class="btn btn-success">Kaydet</button>
-            <a href="list.php?category_id=<?= $selectedCategoryId ?>" class="btn btn-secondary">İptal</a>
+            <a href="list.php?category_id=<?= $selectedCategoryId ?>" class="btn btn-secondary">Geri</a>
         </div>
     </form>
     <?php endif; ?>
 </div>
 
-<!-- ✅ Bootstrap bundle (mobil menü açılması için gerekli) -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>
+
+
+<?php include __DIR__ . '/../includes/footer.php'; ?>

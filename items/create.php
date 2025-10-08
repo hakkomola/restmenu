@@ -171,115 +171,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+// 🔹 HEADER ve NAVBAR dahil
+include __DIR__ . '/../includes/header.php';
 include __DIR__ . '/../includes/navbar.php';
+
+
+
 ?>
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Yeni Menü Öğesi Ekle</title>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-<!-- Bootstrap Icons -->
-<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
 
-<style>
-body {
-  background-color: #f8f9fa;
-}
-.container {
-  background: #fff;
-  border-radius: 12px;
-  padding: 30px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-}
 
-/* Form düzeni */
-.option-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 8px;
-  align-items: center;
-}
-.option-row input {
-  flex: 1 1 45%;
-  min-width: 130px;
-}
-
-/* Sekmeler */
-.nav-tabs .nav-link {
-  border-radius: 8px 8px 0 0;
-}
-.tab-content {
-  background: #fff;
-  border: 1px solid #dee2e6;
-  border-top: none;
-  padding: 20px;
-  border-radius: 0 0 10px 10px;
-}
-
-/* Görsel önizleme ızgarası */
-.image-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-  gap: 12px;
-}
-.image-card {
-  position: relative;
-  border: 1px solid #ddd;
-  border-radius: 10px;
-  overflow: hidden;
-  background: #fff;
-  transition: transform 0.2s ease;
-}
-.image-card:hover {
-  transform: scale(1.03);
-}
-.image-card img {
-  width: 100%;
-  height: 100px;
-  object-fit: cover;
-  display: block;
-}
-.image-card .img-remove {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  background: #dc3545;
-  color: #fff;
-  border: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  line-height: 1;
-  cursor: pointer;
-}
-.image-card .img-remove:focus {
-  outline: 2px solid rgba(220,53,69,.4);
-}
-
-/* Küçük ekranlar */
-@media (max-width: 576px) {
-  .option-row {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .option-row input {
-    flex: 1 1 100%;
-  }
-  .container {
-    padding: 15px;
-  }
-}
-</style>
-
-</head>
-<body>
 <div class="container mt-5" style="max-width: 900px;">
     <h2 class="mb-4">Yeni Menü Öğesi Ekle</h2>
 
@@ -493,6 +393,6 @@ $(function(){
     }
 });
 </script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>
+
+
+<?php include __DIR__ . '/../includes/footer.php'; ?>

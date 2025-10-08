@@ -1,0 +1,262 @@
+/* =======================================================
+   GLOBAL STİLLER
+   ======================================================= */
+body {
+  background-color: #f8f9fa;
+  font-family: "Segoe UI", Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+}
+.container {
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px 30px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 600;
+}
+
+/* =======================================================
+   NAVBAR & FOOTER
+   ======================================================= */
+.navbar {
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+}
+footer {
+  background: #fff;
+  box-shadow: 0 -2px 6px rgba(0,0,0,0.05);
+  padding: 20px;
+  text-align: center;
+  color: #444;
+}
+
+/* =======================================================
+   DASHBOARD & KART TASARIMLARI
+   ======================================================= */
+.card {
+  border: none;
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  transition: all 0.2s ease-in-out;
+}
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+}
+.card .bi {
+  font-size: 2.2rem;
+  color: #0d6efd;
+  margin-bottom: 10px;
+}
+@media (max-width: 768px) {
+  .card .bi { font-size: 1.8rem; }
+}
+
+/* =======================================================
+   FORM & GİRİŞ ELEMANLARI
+   ======================================================= */
+.option-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 8px;
+  align-items: center;
+}
+.option-row input {
+  flex: 1 1 45%;
+  min-width: 130px;
+}
+.muted { opacity: .8; font-size: .9rem; }
+
+/* Sekmeler */
+.nav-tabs .nav-link {
+  border-radius: 8px 8px 0 0;
+  font-weight: 500;
+}
+.tab-content {
+  border: 1px solid #dee2e6;
+  border-top: none;
+  border-radius: 0 0 10px 10px;
+  padding: 20px;
+  background: #fff;
+}
+
+/* Küçük ekranlar */
+@media (max-width: 576px) {
+  .option-row { flex-direction: column; }
+  .option-row input { flex: 1 1 100%; }
+  .tab-content { padding: 12px; }
+}
+
+/* =======================================================
+   GÖRSEL ÖNİZLEME ALANLARI
+   ======================================================= */
+.image-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 12px;
+}
+.image-card {
+  position: relative;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fff;
+  transition: transform .15s ease-in-out;
+  box-shadow: 0 2px 6px rgba(0,0,0,.05);
+}
+.image-card:hover { transform: scale(1.02); }
+.image-card img {
+  width: 100%;
+  height: 100px;
+  object-fit: cover;
+  display: block;
+}
+.image-card .img-remove,
+.image-card a.del {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #dc3545;
+  color: #fff;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  cursor: pointer;
+}
+.image-card .img-remove:focus {
+  outline: 2px solid rgba(220,53,69,.4);
+}
+
+/* Küçük resim kutuları (thumb) */
+.img-thumb-container, .img-container {
+  position: relative;
+  display: inline-block;
+  margin: 5px;
+}
+.img-thumb-container img, .img-container img {
+  width: 100px;
+  height: 100px;
+  object-fit: cover;
+  border-radius: 5px;
+}
+.img-thumb-container a,
+.img-container .delete-btn {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  background: red;
+  color: white;
+  border-radius: 50%;
+  padding: 2px 6px;
+  text-decoration: none;
+  font-weight: bold;
+  border: none;
+  cursor: pointer;
+}
+
+/* =======================================================
+   QR KOD KUTULARI
+   ======================================================= */
+.qr-box {
+  border: 1px solid #dee2e6;
+  border-radius: 10px;
+  padding: 10px;
+  text-align: center;
+  background: #fafafa;
+  height: 100%;
+}
+.qr-box h6 {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.qr-box img {
+  width: 90px;
+  height: 90px;
+  object-fit: contain;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  background: #fff;
+  padding: 3px;
+}
+.qr-btns a {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.8rem;
+}
+@media (max-width: 768px) {
+  .qr-box { margin-bottom: 10px; }
+  .qr-box img { width: 120px; height: 120px; }
+}
+
+/* =======================================================
+   MENÜ AĞACI (TREE STRUCTURE)
+   ======================================================= */
+.tree ul { list-style: none; margin: 0; padding-left: 1.2rem; border-left: 1px solid #dee2e6; }
+.tree li { margin: 6px 0; position: relative; }
+.tree li::before { content: ""; position: absolute; top: 0; left: -1.2rem; height: 100%; border-left: 1px solid #dee2e6; }
+.node {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.node:hover { background-color: #eef1f4; }
+input[type="checkbox"] { width: 16px; height: 16px; accent-color: #0d6efd; }
+.category > .node i.bi-folder2-open { color: #0d6efd; }
+.subcategory > .node i.bi-folder { color: #198754; }
+.item > .node i.bi-file-earmark-text { color: #6c757d; }
+.collapsed > ul { display: none; }
+.collapsed > .node i.toggle { transform: rotate(-90deg); }
+.level1 > .node { padding-left: 8px; font-weight: 600; }
+.level2 > .node { padding-left: 24px; }
+.level3 > .node { padding-left: 40px; }
+.level4 > .node { padding-left: 56px; }
+
+/* =======================================================
+   DİL SEÇİMİ (RestaurantLanguages)
+   ======================================================= */
+.lang-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+.lang-row + .lang-row { margin-top: 8px; }
+.lang-row .spacer { flex: 1; }
+
+/* =======================================================
+   HERO / LANDING STİLİ
+   ======================================================= */
+.hero {
+  position: relative;
+  background: linear-gradient(to bottom right, rgba(13,110,253,0.85), rgba(0,0,0,0.55)),
+              url('../images/herobackground.jpeg') center/cover no-repeat;
+  color: #fff;
+  text-align: center;
+  padding: 110px 25px;
+  border-radius: 0 0 40px 40px;
+  margin-bottom: 60px;
+}
+.hero h1 { font-weight: 700; font-size: 2.6rem; }
+.hero p { font-size: 1.2rem; color: #f1f1f1; }
+.hero .btn { margin: 0.3rem; }
+
+/* =======================================================
+   FİNAL KÜÇÜK AYARLAR
+   ======================================================= */
+.sortable-placeholder { height: 60px; background: #f0f0f0; border: 2px dashed #ccc; }
+.drag-handle { cursor: move; text-align: center; width: 40px; }
+.ui-sortable-helper { background: #e9ecef; }

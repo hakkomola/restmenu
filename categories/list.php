@@ -8,35 +8,18 @@ if (!isset($_SESSION['restaurant_id'])) {
     exit;
 }
 
-include __DIR__ . '/../includes/navbar.php';
-
 $restaurantId = $_SESSION['restaurant_id'];
 
 // Restoranın kategorilerini getir (SortOrder'a göre)
 $stmt = $pdo->prepare('SELECT * FROM MenuCategories WHERE RestaurantID = ? ORDER BY SortOrder ASC, CategoryName ASC');
 $stmt->execute([$restaurantId]);
 $categories = $stmt->fetchAll();
+
+// 🔹 HEADER ve NAVBAR dahil
+include __DIR__ . '/../includes/header.php';
+include __DIR__ . '/../includes/navbar.php';
 ?>
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Kategori Yönetimi</title>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
-<link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
-<style>
-body {
-    background-color: #f7f8fa;
-    font-family: "Segoe UI", Arial, sans-serif;
-}
-.sortable-placeholder { height: 60px; background: #f0f0f0; border: 2px dashed #ccc; }
-.ui-sortable-helper { background: #e9ecef; }
-.drag-handle { cursor: move; }
-</style>
-</head>
-<body>
+
 
 <div class="container mt-5">
     <h2 class="mb-4">Kategoriler</h2>
@@ -81,11 +64,6 @@ body {
     </div>
 </div>
 
-<!-- JS -->
-<script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
-<script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui-touch-punch/0.2.3/jquery.ui.touch-punch.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 $(function(){
     $("#sortable").sortable({
@@ -101,5 +79,6 @@ $(function(){
 });
 </script>
 
-</body>
-</html>
+
+
+<?php include __DIR__ . '/../includes/footer.php'; ?>

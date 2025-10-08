@@ -6,7 +6,6 @@ if (!isset($_SESSION['restaurant_id'])) {
 }
 
 require_once __DIR__ . '/../db.php';
-include __DIR__ . '/../includes/navbar.php';
 
 $restaurantId = $_SESSION['restaurant_id'];
 $message = '';
@@ -38,16 +37,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
+
+// 🔹 HEADER ve NAVBAR dahil
+include __DIR__ . '/../includes/header.php';
+include __DIR__ . '/../includes/navbar.php';
+
+
 ?>
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Şifre Değiştir</title>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-<body class="bg-light">
+
+
 <div class="container py-5" style="max-width:500px;">
     <h2 class="mb-4 text-center">Şifre Değiştir</h2>
 
@@ -77,6 +75,5 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </form>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>
+
+<?php include __DIR__ . '/../includes/footer.php'; ?>

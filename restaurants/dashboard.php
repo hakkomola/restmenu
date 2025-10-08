@@ -6,7 +6,7 @@ if (!isset($_SESSION['restaurant_id'])) {
 }
 
 require_once __DIR__ . '/../db.php';
-include __DIR__ . '/../includes/navbar.php';
+
 
 $restaurantId = $_SESSION['restaurant_id'];
 $restaurantName = $_SESSION['restaurant_name'] ?? 'Restoran';
@@ -24,67 +24,16 @@ $qrImg = $scheme . '://' . $host . $base . '/generate_qr.php?hash=' . $hash;
 // menu2.php
 $menu2Link = $scheme . '://' . $host . $base . '/restaurant_info.php?hash=' . $hash . '&theme=dark&lang=tr';
 $qr2Img = $scheme . '://' . $host . $base . '/generate_qr.php?hash=' . $hash . '&menu=2';
+
+// 🔹 HEADER ve NAVBAR dahil
+include __DIR__ . '/../includes/header.php';
+include __DIR__ . '/../includes/navbar.php';
+
+
+
 ?>
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dashboard - <?= htmlspecialchars($restaurantName) ?></title>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
-<style>
-body {
-    background-color: #f7f8fa;
-}
-.navbar {
-    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
-}
-.restaurant-header {
-    background: #fff;
-    border-radius: 12px;
-    padding: 1.2rem;
-    text-align: center;
-    margin-top: 1.5rem;
-    margin-bottom: 2rem;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-}
-.restaurant-header h4 {
-    margin: 0;
-    color: #333;
-    font-weight: 600;
-}
-.card {
-    border: none;
-    border-radius: 16px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-    transition: all 0.2s ease-in-out;
-}
-.card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 6px 18px rgba(0,0,0,0.08);
-}
-.card .bi {
-    font-size: 2.2rem;
-    color: #0d6efd;
-    margin-bottom: 10px;
-}
-footer {
-    background: #fff;
-    box-shadow: 0 -2px 6px rgba(0,0,0,0.05);
-}
-.qr-img {
-    height: 140px;
-    border-radius: 10px;
-}
-@media (max-width: 768px) {
-    .card .bi {
-        font-size: 1.8rem;
-    }
-}
-</style>
-</head>
-<body>
+
+
 
 <div class="container">
 
@@ -169,11 +118,4 @@ footer {
     </div>
 </div>
 
-
-<footer class="text-center py-3 mt-5">
-    &copy; <?= date('Y') ?> Restoran Menü Uygulaması
-</footer>
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>
+<?php include __DIR__ . '/../includes/footer.php'; ?>

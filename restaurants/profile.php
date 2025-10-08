@@ -182,23 +182,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['delete_main']) && !i
     }
 }
 
-include __DIR__ . '/../includes/navbar.php';
 if (isset($_GET['success'])) $message = 'İşlem başarıyla gerçekleştirildi.';
+
+// 🔹 HEADER ve NAVBAR dahil
+include __DIR__ . '/../includes/header.php';
+include __DIR__ . '/../includes/navbar.php';
+
 ?>
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Restoran Profili</title>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-<style>
-.lang-row { display:flex; align-items:center; gap:12px; padding:8px 12px; border:1px solid #e5e7eb; border-radius:8px; }
-.lang-row + .lang-row { margin-top:8px; }
-.lang-row .spacer { flex:1; }
-</style>
-</head>
-<body class="bg-light">
+
 <div class="container mt-5" style="max-width:800px;">
     <h2 class="mb-4">Restoran Bilgilerim</h2>
 
@@ -359,5 +350,5 @@ if (isset($_GET['success'])) $message = 'İşlem başarıyla gerçekleştirildi.
 })();
 </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>
+
+<?php include __DIR__ . '/../includes/footer.php'; ?>
