@@ -15,8 +15,15 @@ $stmtCats = $pdo->prepare("SELECT * FROM MenuCategories WHERE RestaurantID=? ORD
 $stmtCats->execute([$restaurantId]);
 $categories = $stmtCats->fetchAll();
 
-// Seçili kategori
+// Eğer kategori seçilmemişse ilkini otomatik seç
 $selectedCategoryId = $_GET['category_id'] ?? null;
+if (!$selectedCategoryId && !empty($categories)) {
+    $firstCatId = $categories[0]['CategoryID'];
+    header("Location: ?category_id=" . $firstCatId);
+    exit;
+}
+
+// Seçili kategori varsa alt kategorileri getir
 if ($selectedCategoryId) {
     $stmtSub = $pdo->prepare("SELECT * FROM SubCategories WHERE CategoryID=? ORDER BY SortOrder ASC, SubCategoryName ASC");
     $stmtSub->execute([$selectedCategoryId]);
@@ -28,7 +35,6 @@ if ($selectedCategoryId) {
 // 🔹 HEADER ve NAVBAR dahil
 include __DIR__ . '/../includes/header.php';
 include __DIR__ . '/../includes/navbar.php';
-
 ?>
 
 <div class="container mt-5">
@@ -47,9 +53,12 @@ include __DIR__ . '/../includes/navbar.php';
     </div>
 
     <?php if ($selectedCategoryId): ?>
-        <div class="mb-3">
+        <div class="mb-3 d-flex gap-2">
             <a href="create.php?category_id=<?= $selectedCategoryId ?>" class="btn btn-success">
-                <i class="bi bi-plus-circle"></i> Yeni Alt Kategori Ekle
+                <i class="bi bi-plus-circle"></i> Yeni
+            </a>
+            <a href="/../restaurants/dashboard.php" class="btn btn-secondary">
+                <i class="bi bi-arrow-left-circle"></i> Geri
             </a>
         </div>
 
@@ -101,7 +110,8 @@ $(function(){
     // Kategori değişince sayfayı reload et
     $('#categorySelect').change(function(){
         let catId = $(this).val();
-        window.location.href = '?category_id=' + catId;
+        if (catId) window.location.href = '?category_id=' + catId;
+        else window.location.href = '?';
     });
 
     // Sıralama (drag & drop)
@@ -117,6 +127,5 @@ $(function(){
     });
 });
 </script>
-
 
 <?php include __DIR__ . '/../includes/footer.php'; ?>

@@ -24,9 +24,16 @@ include __DIR__ . '/../includes/navbar.php';
 <div class="container mt-5">
     <h2 class="mb-4">Kategoriler</h2>
     <div class="mb-3">
-        <a href="create.php" class="btn btn-success me-2">Yeni Kategori Ekle</a>
-        <a href="../restaurants/dashboard.php" class="btn btn-secondary">Geri</a>
+
+              <a href="create.php" class="btn btn-success">
+                <i class="bi bi-plus-circle"></i> Yeni
+            </a>
+            <a href="/../restaurants/dashboard.php" class="btn btn-secondary">
+                <i class="bi bi-arrow-left-circle"></i> Geri
+            </a>
     </div>
+
+
 
     <div class="table-responsive">
         <table class="table table-bordered align-middle" id="category-table">

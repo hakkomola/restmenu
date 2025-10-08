@@ -69,8 +69,9 @@ include __DIR__ . '/../includes/navbar.php';
             <input type="password" name="confirmPassword" class="form-control" required>
         </div>
         <div class="d-flex justify-content-between mt-4">
-            <a href="../restaurants/dashboard.php" class="btn btn-secondary">Geri</a>
             <button type="submit" class="btn btn-primary">Şifreyi Güncelle</button>
+            <a href="../restaurants/dashboard.php" class="btn btn-secondary">Geri</a>
+
         </div>
     </form>
 </div>

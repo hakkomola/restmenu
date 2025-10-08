@@ -10,20 +10,21 @@ if (!isset($_SESSION['restaurant_id'])) {
 
 $restaurantId = $_SESSION['restaurant_id'];
 
-// Tüm ana kategoriler ve alt kategoriler
+// Kategoriler
 $categories = $pdo->prepare("SELECT * FROM MenuCategories WHERE RestaurantID=? ORDER BY CategoryName ASC");
 $categories->execute([$restaurantId]);
-$categories = $categories->fetchAll();
+$categories = $categories->fetchAll(PDO::FETCH_ASSOC);
 
-$subcategories = $pdo->prepare("SELECT * FROM SubCategories WHERE RestaurantID=? ORDER BY SubCategoryName ASC");
-$subcategories->execute([$restaurantId]);
-$subcategories = $subcategories->fetchAll();
+// Alt kategoriler (hepsini çekiyoruz, JS ile filtrelenecek)
+$subStmt = $pdo->prepare("SELECT * FROM SubCategories WHERE RestaurantID=? ORDER BY SubCategoryName ASC");
+$subStmt->execute([$restaurantId]);
+$allSubcategories = $subStmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Filtreler
 $filterCategory = $_GET['category'] ?? '';
 $filterSubCategory = $_GET['subcategory'] ?? '';
 
-// Menü öğelerini al
+// Menü öğeleri
 $sql = '
     SELECT mi.*, sc.SubCategoryID, sc.SubCategoryName, mc.CategoryID, mc.CategoryName
     FROM MenuItems mi
@@ -45,104 +46,134 @@ if ($filterSubCategory) {
 $sql .= " ORDER BY mi.SortOrder ASC, mi.MenuName ASC";
 $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
-$menuItems = $stmt->fetchAll();
+$menuItems = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // 🔹 HEADER ve NAVBAR dahil
 include __DIR__ . '/../includes/header.php';
 include __DIR__ . '/../includes/navbar.php';
-
-
 ?>
 
-
 <div class="container mt-5">
-    <h2 class="mb-4">Menü Öğeleri</h2>
+  <h2 class="mb-4">Menü Öğeleri</h2>
 
-    <div class="row mb-3">
-        <div class="col-md-4">
-            <select id="categoryFilter" class="form-select">
-                <option value="">-- Ana Kategori Seç --</option>
-                <?php foreach ($categories as $cat): ?>
-                    <option value="<?= $cat['CategoryID'] ?>" <?= $filterCategory == $cat['CategoryID'] ? 'selected' : '' ?>>
-                        <?= htmlspecialchars($cat['CategoryName']) ?>
-                    </option>
-                <?php endforeach; ?>
-            </select>
-        </div>
-        <div class="col-md-4">
-            <select id="subcategoryFilter" class="form-select">
-                <option value="">-- Alt Kategori Seç --</option>
-                <?php foreach ($subcategories as $sub): ?>
-                    <option value="<?= $sub['SubCategoryID'] ?>" <?= $filterSubCategory == $sub['SubCategoryID'] ? 'selected' : '' ?>>
-                        <?= htmlspecialchars($sub['SubCategoryName']) ?>
-                    </option>
-                <?php endforeach; ?>
-            </select>
-        </div>
-        <div class="col-md-4 text-end">
-            <a href="create.php" class="btn btn-success"><i class="bi bi-plus-circle"></i> Yeni Menü Öğesi</a>
-            <a href="../restaurants/dashboard.php" class="btn btn-secondary"><i class="bi bi-arrow-left"></i> Geri</a>
-        </div>
+  <!-- Filtre Alanı -->
+  <div class="row mb-2">
+    <div class="col-md-4 mb-2">
+      <select id="categoryFilter" class="form-select">
+        <option value="">-- Ana Kategori Seç --</option>
+        <?php foreach ($categories as $cat): ?>
+          <option value="<?= $cat['CategoryID'] ?>" <?= $filterCategory == $cat['CategoryID'] ? 'selected' : '' ?>>
+            <?= htmlspecialchars($cat['CategoryName']) ?>
+          </option>
+        <?php endforeach; ?>
+      </select>
     </div>
+    <div class="col-md-4 mb-2">
+      <select id="subcategoryFilter" class="form-select">
+        <option value="">-- Alt Kategori Seç --</option>
+      </select>
+    </div>
+  </div>
 
-    <div class="table-responsive">
-        <table class="table table-bordered align-middle" id="menu-table">
-            <thead class="table-light">
-                <tr>
-                    <th style="width:50px;">#</th>
-                    <th>Menü Adı</th>
-                    <th>Kategori</th>
-                    <th>Alt Kategori</th>
-                    <th>Açıklama</th>
-                    <th>Fiyat</th>
-                    <th style="width:200px;">İşlemler</th>
-                </tr>
-            </thead>
-            <tbody id="sortable">
-                <?php foreach ($menuItems as $item): ?>
-                <tr data-id="<?= $item['MenuItemID'] ?>">
-                    <td class="drag-handle">☰</td>
-                    <td><?= htmlspecialchars($item['MenuName']) ?></td>
-                    <td><?= htmlspecialchars($item['CategoryName'] ?? '-') ?></td>
-                    <td><?= htmlspecialchars($item['SubCategoryName'] ?? '-') ?></td>
-                    <td><?= htmlspecialchars($item['Description']) ?></td>
-                    <td><?= number_format($item['Price'], 2) ?> ₺</td>
-                    <td>
-                        <a href="edit.php?id=<?= $item['MenuItemID'] ?>" class="btn btn-primary btn-sm">
-                            <i class="bi bi-pencil-square"></i> Düzenle
-                        </a>
-                        <a href="delete.php?id=<?= $item['MenuItemID'] ?>" class="btn btn-danger btn-sm"
-                           onclick="return confirm('Silmek istediğinize emin misiniz?')">
-                           <i class="bi bi-trash"></i> Sil
-                        </a>
-                    </td>
-                </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
-    </div>
+  <!-- Butonlar -->
+  <div class="mb-4 d-flex flex-wrap gap-2">
+    <a href="create.php" class="btn btn-success">
+      <i class="bi bi-plus-circle"></i> Yeni
+    </a>
+    <a href="../restaurants/dashboard.php" class="btn btn-secondary">
+      <i class="bi bi-arrow-left"></i> Geri
+    </a>
+  </div>
+
+  <!-- Menü Tablosu -->
+  <div class="table-responsive">
+    <table class="table table-bordered align-middle" id="menu-table">
+      <thead class="table-light">
+        <tr>
+          <th style="width:50px;">#</th>
+          <th>Menü Adı</th>
+          <th>Kategori</th>
+          <th>Alt Kategori</th>
+          <th>Açıklama</th>
+          <th>Fiyat</th>
+          <th style="width:200px;">İşlemler</th>
+        </tr>
+      </thead>
+      <tbody id="sortable">
+        <?php foreach ($menuItems as $item): ?>
+        <tr data-id="<?= $item['MenuItemID'] ?>">
+          <td class="drag-handle">☰</td>
+          <td><?= htmlspecialchars($item['MenuName']) ?></td>
+          <td><?= htmlspecialchars($item['CategoryName'] ?? '-') ?></td>
+          <td><?= htmlspecialchars($item['SubCategoryName'] ?? '-') ?></td>
+          <td><?= htmlspecialchars($item['Description']) ?></td>
+          <td><?= number_format($item['Price'], 2) ?> ₺</td>
+          <td>
+            <a href="edit.php?id=<?= $item['MenuItemID'] ?>" class="btn btn-primary btn-sm">
+              <i class="bi bi-pencil-square"></i> Düzenle
+            </a>
+            <a href="delete.php?id=<?= $item['MenuItemID'] ?>" class="btn btn-danger btn-sm"
+               onclick="return confirm('Silmek istediğinize emin misiniz?')">
+               <i class="bi bi-trash"></i> Sil
+            </a>
+          </td>
+        </tr>
+        <?php endforeach; ?>
+      </tbody>
+    </table>
+  </div>
 </div>
 
+<script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
 <script>
-$(function(){
-    // Drag & drop sıralama
-    $("#sortable").sortable({
-        placeholder: "sortable-placeholder",
-        handle: ".drag-handle",
-        update: function(event, ui) {
-            let order = $(this).children().map(function(){ return $(this).data('id'); }).get();
-            $.post('update_menu_order.php', {order: order}, function(res){
-                console.log(res);
-            });
-        }
-    });
+$(function() {
+  const allSubs = <?= json_encode($allSubcategories) ?>;
+  const currentCat = '<?= $filterCategory ?>';
+  const currentSub = '<?= $filterSubCategory ?>';
 
-    // Filtre değişince sayfayı yeniden yükle
-    $('#categoryFilter, #subcategoryFilter').change(function(){
-        let cat = $('#categoryFilter').val();
-        let sub = $('#subcategoryFilter').val();
-        window.location.href = '?category=' + cat + '&subcategory=' + sub;
+  function populateSubcats(catId) {
+    let html = '<option value="">-- Alt Kategori Seç --</option>';
+    if (!catId) {
+      $('#subcategoryFilter').html(html);
+      return;
+    }
+    allSubs.forEach(sc => {
+      if (sc.CategoryID == catId) {
+        html += `<option value="${sc.SubCategoryID}" ${(sc.SubCategoryID == currentSub ? 'selected' : '')}>${sc.SubCategoryName}</option>`;
+      }
     });
+    $('#subcategoryFilter').html(html);
+  }
+
+  // Sayfa ilk açıldığında seçili kategori varsa alt kategorileri yükle
+  if (currentCat) {
+    populateSubcats(currentCat);
+  }
+
+  // Ana kategori değişince alt kategorileri filtrele
+  $('#categoryFilter').on('change', function() {
+    const catId = $(this).val();
+    populateSubcats(catId);
+  });
+
+  // Filtre değişince sayfayı yenile
+  $('#categoryFilter, #subcategoryFilter').on('change', function() {
+    const cat = $('#categoryFilter').val();
+    const sub = $('#subcategoryFilter').val();
+    window.location.href = '?category=' + cat + '&subcategory=' + sub;
+  });
+
+  // Sürükle bırak sıralama
+  $("#sortable").sortable({
+    placeholder: "sortable-placeholder",
+    handle: ".drag-handle",
+    update: function(event, ui) {
+      let order = $(this).children().map(function(){ return $(this).data('id'); }).get();
+      $.post('update_menu_order.php', {order: order}, function(res){
+        console.log(res);
+      });
+    }
+  });
 });
 </script>
 

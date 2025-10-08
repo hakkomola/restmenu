@@ -3,7 +3,7 @@
 session_start();
 require_once __DIR__ . '/../db.php';
 
-// İsteğe bağlı hata çıktısı: ?debug=1
+// Debug amaçlı: ?debug=1
 if (isset($_GET['debug'])) { ini_set('display_errors', 1); error_reporting(E_ALL); }
 
 if (!isset($_SESSION['restaurant_id'])) {
@@ -15,7 +15,7 @@ $restaurantId = (int)$_SESSION['restaurant_id'];
 $itemId = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 if ($itemId <= 0) { header('Location: list.php'); exit; }
 
-/** Ürün + alt kategori (LEFT JOIN; bağ kopuk olsa da açılır) */
+/** Ürün + bağlı olduğu alt/ana kategori */
 $qItem = $pdo->prepare("
     SELECT mi.*, sc.SubCategoryID AS SCID, sc.CategoryID AS CATID
     FROM MenuItems mi
@@ -41,7 +41,7 @@ foreach ($categories as $cat) {
     $subMap[$cat['CategoryID']] = $st->fetchAll(PDO::FETCH_ASSOC);
 }
 
-/** Diller (RestaurantLanguages + Languages). Boşsa TR fallback. */
+/** Diller */
 try {
     $langStmt = $pdo->prepare("
         SELECT rl.LangCode, rl.IsDefault, l.LangName
@@ -52,15 +52,13 @@ try {
     ");
     $langStmt->execute([$restaurantId]);
     $languages = $langStmt->fetchAll(PDO::FETCH_ASSOC);
-} catch (Exception $e) {
-    $languages = [];
-}
+} catch (Exception $e) { $languages = []; }
 if (!$languages) { $languages = [['LangCode'=>'tr','IsDefault'=>1,'LangName'=>'Türkçe']]; }
 $defaultLang = null;
 foreach ($languages as $L) { if (!empty($L['IsDefault'])) { $defaultLang = $L['LangCode']; break; } }
 if (!$defaultLang) $defaultLang = $languages[0]['LangCode'];
 
-/** MenuItemTranslations FK kolonu (MenuItemID/ItemID) tespiti */
+/** MenuItemTranslations FK kolon adı (MenuItemID/ItemID) */
 $fkCol = 'MenuItemID';
 try {
     $colCheck = $pdo->prepare("
@@ -74,7 +72,7 @@ try {
     $colCheck->execute();
     $found = $colCheck->fetchColumn();
     if ($found) $fkCol = $found;
-} catch (Exception $e) { /* varsayılan kalsın */ }
+} catch (Exception $e) {}
 
 /** Ürün çevirileri */
 $trItmStmt = $pdo->prepare("SELECT LangCode, Name, Description FROM MenuItemTranslations WHERE $fkCol = ?");
@@ -100,7 +98,7 @@ if ($optIds) {
     }
 }
 
-/** MenuImages PK kolonunu tespit et (ImageID / MenuImageID / ID) */
+/** MenuImages PK kolonunu tespit (ImageID / MenuImageID / ID) */
 $imgPkCol = 'ImageID';
 try {
     $c1 = $pdo->prepare("
@@ -128,14 +126,14 @@ try {
         $pk = $c2->fetchColumn();
         if ($pk) $imgPkCol = $pk;
     }
-} catch (Exception $e) { /* varsayılan kalsın */ }
+} catch (Exception $e) {}
 
-/** Mevcut resimler (dinamik PK) */
+/** Mevcut resimler */
 $imgStmt = $pdo->prepare("SELECT {$imgPkCol} AS ImgPK, ImageURL FROM MenuImages WHERE MenuItemID = ? ORDER BY {$imgPkCol}");
 $imgStmt->execute([$itemId]);
 $images = $imgStmt->fetchAll(PDO::FETCH_ASSOC);
 
-/** Tekil resim silme (GET) */
+/** Tek resim silme */
 if (isset($_GET['delete_image'])) {
     $imgId = (int)$_GET['delete_image'];
     if ($imgId > 0) {
@@ -155,12 +153,12 @@ if (isset($_GET['delete_image'])) {
 
 $error = '';
 
-/** Güncelle */
+/** Güncelle (POST) */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $categoryId    = isset($_POST['category_id']) ? (int)$_POST['category_id'] : $currentCategoryId;
     $subCategoryId = isset($_POST['sub_category_id']) ? (int)$_POST['sub_category_id'] : $currentSubId;
 
-    $trans = $_POST['trans'] ?? []; // trans[lang][name|desc]
+    $trans   = $_POST['trans'] ?? []; // trans[lang][name|desc]
     $defName = trim($trans[$defaultLang]['name'] ?? '');
     $defDesc = trim($trans[$defaultLang]['desc'] ?? '');
     $priceVal = isset($_POST['price']) ? (float)$_POST['price'] : (float)($item['Price'] ?? 0);
@@ -169,11 +167,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $optDefNames  = $_POST['options_def']['name']  ?? []; // [OptionID] => name
     $optDefPrices = $_POST['options_def']['price'] ?? []; // [OptionID] => price
     $optDeletes   = $_POST['options_delete']       ?? []; // [OptionID...]
-    $optTrPost    = $_POST['options_tr']           ?? []; // options_tr[lang]['name'][OptionID] => name
+    $optTrPost    = $_POST['options_tr']           ?? []; // options_tr[lang]['name'][OptionID]
 
     // Yeni seçenekler
-    $optNewNames  = $_POST['options_new']['name']  ?? []; // []
-    $optNewPrices = $_POST['options_new']['price'] ?? []; // []
+    $optNewNames  = $_POST['options_new']['name']  ?? [];
+    $optNewPrices = $_POST['options_new']['price'] ?? [];
     $optNewTrPost = $_POST['options_new_tr']       ?? []; // [lang]['name'][]
 
     if ($defName === '')       $error = strtoupper($defaultLang) . ' dilinde ürün adı zorunludur.';
@@ -183,18 +181,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             $pdo->beginTransaction();
 
-            // 1) Ürün ana kayıt
+            // 1) Ürün
             $upd = $pdo->prepare("UPDATE MenuItems SET MenuName=?, Description=?, Price=?, SubCategoryID=? WHERE MenuItemID=? AND RestaurantID=?");
             $upd->execute([$defName, ($defDesc !== '' ? $defDesc : null), $priceVal, $subCategoryId, $itemId, $restaurantId]);
 
-            // 2) Ürün çevirileri (upsert / temizle)
+            // 2) Ürün çevirileri (upsert/temizle)
             $insIt = $pdo->prepare("
                 INSERT INTO MenuItemTranslations ($fkCol, LangCode, Name, Description)
                 VALUES (:iid, :lang, :name, :desc)
                 ON DUPLICATE KEY UPDATE Name = VALUES(Name), Description = VALUES(Description)
             ");
             $delIt = $pdo->prepare("DELETE FROM MenuItemTranslations WHERE $fkCol = ? AND LangCode = ?");
-
             foreach ($languages as $L) {
                 $lc = $L['LangCode'];
                 if ($lc === $defaultLang) continue;
@@ -207,13 +204,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
 
-            // 3) Seçenek silme
+            // 3) Silinecek seçenekler
             if (!empty($optDeletes)) {
                 $delO = $pdo->prepare("DELETE FROM MenuItemOptions WHERE OptionID = ? AND MenuItemID = ?");
-                foreach ($optDeletes as $oid) {
-                    $oid = (int)$oid; if ($oid>0) $delO->execute([$oid, $itemId]);
-                }
-                // CASCADE yoksa çevirileri de temizle
+                foreach ($optDeletes as $oid) { $oid = (int)$oid; if ($oid>0) $delO->execute([$oid, $itemId]); }
+                // Çevirileri de temizle (CASCADE yoksa)
                 $optDeletes = array_values(array_filter(array_map('intval', (array)$optDeletes)));
                 if ($optDeletes) {
                     $in = implode(',', array_fill(0, count($optDeletes), '?'));
@@ -234,7 +229,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
 
-            // 5) Seçenek çevirileri (mevcut)
+            // 5) Mevcut seçenek çevirileri
             if (!empty($optTrPost)) {
                 $insOtr = $pdo->prepare("
                     INSERT INTO MenuItemOptionTranslations (OptionID, LangCode, Name)
@@ -284,7 +279,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
 
-            // 7) Yeni resimler (çoklu)
+            // 7) Yeni resimler
             if (!empty($_FILES['images']['name'][0])) {
                 $uploadsDir = __DIR__ . '/../uploads/';
                 if (!is_dir($uploadsDir)) mkdir($uploadsDir, 0777, true);
@@ -295,8 +290,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $fileName = time() . '_' . basename($_FILES['images']['name'][$i]);
                     $target   = $uploadsDir . $fileName;
                     if (move_uploaded_file($tmpName, $target)) {
-                        $imageUrl = 'uploads/' . $fileName;
-                        $insImg->execute([$itemId, $imageUrl]);
+                        $insImg->execute([$itemId, 'uploads/' . $fileName]);
                     }
                 }
             }
@@ -311,12 +305,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// 🔹 HEADER ve NAVBAR dahil
+$pageTitle = "Menü Öğesi Düzenle";
 include __DIR__ . '/../includes/header.php';
 include __DIR__ . '/../includes/navbar.php';
-
 ?>
-
 
 <div class="container mt-5" style="max-width: 980px;">
     <h2 class="mb-4">Menü Öğesi Düzenle</h2>
@@ -347,84 +339,88 @@ include __DIR__ . '/../includes/navbar.php';
                     $nameVal = $isDef ? ($item['MenuName'] ?? '') : ($itemTr[$lc]['name'] ?? '');
                     $descVal = $isDef ? ($item['Description'] ?? '') : ($itemTr[$lc]['desc'] ?? '');
                 ?>
-                    <div class="tab-pane fade <?= $isDef ? 'show active' : '' ?>" id="tab-<?= htmlspecialchars($lc) ?>">
-                           <!-- Kategori / Alt Kategori -->
-            <div class="mb-3">
-                <label>Ana Kategori</label>
-                <select name="category_id" id="categorySelect" class="form-select" required>
-                    <option value="">Seçiniz</option>
-                    <?php foreach ($categories as $cat): ?>
-                        <option value="<?= $cat['CategoryID'] ?>" <?= ($cat['CategoryID'] == $currentCategoryId ? 'selected' : '') ?>>
-                            <?= htmlspecialchars($cat['CategoryName']) ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
+                <div class="tab-pane fade <?= $isDef ? 'show active' : '' ?>" id="tab-<?= htmlspecialchars($lc) ?>">
+                    <!-- Kategori / Alt Kategori (Sadece bir kez gösterilecek alanlar; ama basit tutmak için her tabda aynı id'yi kullanıyoruz) -->
+                    <?php if ($isDef): ?>
+                    <div class="mb-3">
+                        <label>Ana Kategori</label>
+                        <select name="category_id" id="categorySelect" class="form-select" required>
+                            <option value="">Seçiniz</option>
+                            <?php foreach ($categories as $cat): ?>
+                                <option value="<?= $cat['CategoryID'] ?>" <?= ($cat['CategoryID'] == $currentCategoryId ? 'selected' : '') ?>>
+                                    <?= htmlspecialchars($cat['CategoryName']) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
 
-            <div class="mb-4">
-                <label>Alt Kategori</label>
-                <select name="sub_category_id" id="subCategorySelect" class="form-select" required>
-                    <option value="">Seçiniz</option>
-                    <?php foreach ($subMap[$currentCategoryId] ?? [] as $sc): ?>
-                        <option value="<?= $sc['SubCategoryID'] ?>" <?= ($sc['SubCategoryID'] == $currentSubId ? 'selected' : '') ?>>
-                            <?= htmlspecialchars($sc['SubCategoryName']) ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-              <div class="mb-3">
-                            <label>Menü Adı (<?= strtoupper($lc) ?>)</label>
-                            <input type="text" name="trans[<?= htmlspecialchars($lc) ?>][name]" class="form-control"
-                                   value="<?= htmlspecialchars($nameVal) ?>" <?= $isDef ? 'required' : '' ?>>
-                        </div>
-                        <div class="mb-3">
-                            <label>Açıklama (<?= strtoupper($lc) ?>)</label>
-                            <textarea name="trans[<?= htmlspecialchars($lc) ?>][desc]" class="form-control" rows="2"><?= htmlspecialchars($descVal) ?></textarea>
-                        </div>
+                    <div class="mb-4">
+                        <label>Alt Kategori</label>
+                        <select name="sub_category_id" id="subCategorySelect" class="form-select" required>
+                            <option value="">Seçiniz</option>
+                            <?php foreach ($subMap[$currentCategoryId] ?? [] as $sc): ?>
+                                <option value="<?= $sc['SubCategoryID'] ?>" <?= ($sc['SubCategoryID'] == $currentSubId ? 'selected' : '') ?>>
+                                    <?= htmlspecialchars($sc['SubCategoryName']) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <?php endif; ?>
 
-                        <!-- Seçenekler -->
-                        <div class="border rounded p-3">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <h6 class="m-0">Seçenekler (<?= strtoupper($lc) ?>)</h6>
-                                <?php if ($isDef): ?>
-                                    <button type="button" class="btn btn-sm btn-outline-primary" id="addNewOptionBtn">+ Yeni Seçenek</button>
-                                <?php else: ?>
-                                    <span class="muted">Yeni satır ekleme/silme <b>varsayılan dil</b> sekmesinden yapılır.</span>
-                                <?php endif; ?>
-                            </div>
+                    <div class="mb-3">
+                        <label>Menü Adı (<?= strtoupper($lc) ?>)</label>
+                        <input type="text" name="trans[<?= htmlspecialchars($lc) ?>][name]" class="form-control"
+                               value="<?= htmlspecialchars($nameVal) ?>" <?= $isDef ? 'required' : '' ?>>
+                    </div>
 
-                            <div id="options-<?= htmlspecialchars($lc) ?>-container">
-                                <?php if ($isDef): ?>
-                                    <?php foreach ($options as $op): ?>
-                                        <div class="option-row" data-oid="<?= (int)$op['OptionID'] ?>">
-                                            <input type="text" class="form-control"
-                                                   name="options_def[name][<?= (int)$op['OptionID'] ?>]"
-                                                   value="<?= htmlspecialchars($op['OptionName']) ?>"
-                                                   placeholder="Seçenek adı">
-                                            <input type="number" step="0.01" class="form-control"
-                                                   name="options_def[price][<?= (int)$op['OptionID'] ?>]"
-                                                   value="<?= htmlspecialchars($op['Price']) ?>"
-                                                   placeholder="Fiyat (₺)">
-                                            <button type="button" class="btn btn-outline-danger removeExistingBtn" data-oid="<?= (int)$op['OptionID'] ?>">&times;</button>
-                                        </div>
-                                    <?php endforeach; ?>
-                                <?php else: ?>
-                                    <?php foreach ($options as $op): ?>
-                                        <div class="option-row" data-oid="<?= (int)$op['OptionID'] ?>">
-                                            <input type="text" class="form-control"
-                                                   name="options_tr[<?= htmlspecialchars($lc) ?>][name][<?= (int)$op['OptionID'] ?>]"
-                                                   value="<?= htmlspecialchars($optTr[$lc][$op['OptionID']] ?? '') ?>"
-                                                   placeholder="Seçenek adı (çeviri)">
-                                        </div>
-                                    <?php endforeach; ?>
-                                <?php endif; ?>
-                            </div>
+                    <div class="mb-3">
+                        <label>Açıklama (<?= strtoupper($lc) ?>)</label>
+                        <textarea name="trans[<?= htmlspecialchars($lc) ?>][desc]" class="form-control" rows="2"><?= htmlspecialchars($descVal) ?></textarea>
+                    </div>
 
+                    <!-- Seçenekler -->
+                    <div class="border rounded p-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="m-0">Seçenekler (<?= strtoupper($lc) ?>)</h6>
                             <?php if ($isDef): ?>
-                                <div class="form-text">Var olan satırları burada düzenleyebilir/silebilirsiniz. Yeni satırlar eklediğinizde diğer dillerde çeviri alanları otomatik oluşur.</div>
+                                <button type="button" class="btn btn-sm btn-outline-primary" id="addNewOptionBtn">+ Yeni Seçenek</button>
+                            <?php else: ?>
+                                <span class="text-muted">Yeni satır ekleme/silme <b>varsayılan dil</b> sekmesinden yapılır.</span>
                             <?php endif; ?>
                         </div>
+
+                        <div id="options-<?= htmlspecialchars($lc) ?>-container">
+                            <?php if ($isDef): ?>
+                                <?php foreach ($options as $op): ?>
+                                    <div class="option-row" data-oid="<?= (int)$op['OptionID'] ?>">
+                                        <input type="text" class="form-control"
+                                               name="options_def[name][<?= (int)$op['OptionID'] ?>]"
+                                               value="<?= htmlspecialchars($op['OptionName']) ?>"
+                                               placeholder="Seçenek adı">
+                                        <input type="number" step="0.01" class="form-control"
+                                               name="options_def[price][<?= (int)$op['OptionID'] ?>]"
+                                               value="<?= htmlspecialchars($op['Price']) ?>"
+                                               placeholder="Fiyat (₺)">
+                                        <button type="button" class="btn btn-outline-danger removeExistingBtn" data-oid="<?= (int)$op['OptionID'] ?>">&times;</button>
+                                    </div>
+                                <?php endforeach; ?>
+                            <?php else: ?>
+                                <?php foreach ($options as $op): ?>
+                                    <div class="option-row" data-oid="<?= (int)$op['OptionID'] ?>">
+                                        <input type="text" class="form-control"
+                                               name="options_tr[<?= htmlspecialchars($lc) ?>][name][<?= (int)$op['OptionID'] ?>]"
+                                               value="<?= htmlspecialchars($optTr[$lc][$op['OptionID']] ?? '') ?>"
+                                               placeholder="Seçenek adı (çeviri)">
+                                    </div>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </div>
+
+                        <?php if ($isDef): ?>
+                            <div class="form-text">Var olan satırları burada düzenleyebilir/silebilirsiniz. Yeni satırlar eklendiğinde diğer dillerde çeviri alanları otomatik oluşur.</div>
+                        <?php endif; ?>
                     </div>
+                </div>
                 <?php endforeach; ?>
             </div>
 
@@ -435,8 +431,6 @@ include __DIR__ . '/../includes/navbar.php';
                 <label>Varsayılan Fiyat (₺)</label>
                 <input type="number" step="0.01" name="price" class="form-control" value="<?= htmlspecialchars($item['Price'] ?? 0) ?>">
             </div>
-
-       
 
             <!-- Mevcut Resimler -->
             <div class="mb-2">
@@ -475,121 +469,19 @@ include __DIR__ . '/../includes/navbar.php';
     </form>
 </div>
 
+<!-- jQuery (sadece bu sayfada gerekli dinamikler için) -->
 <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+
 <script>
-(function(){
-    const subMap = <?= json_encode($subMap) ?>;
-    const languages = <?= json_encode(array_column($languages, null, 'LangCode')) ?>;
-    const defaultLang = <?= json_encode($defaultLang) ?>;
+  // PHP'den JS'e veri köprüsü
+  const subMap       = <?= json_encode($subMap) ?>;
+  const languages    = <?= json_encode(array_column($languages, null, 'LangCode')) ?>;
+  const defaultLang  = <?= json_encode($defaultLang) ?>;
+  const currentCatId = <?= (int)$currentCategoryId ?>;
+  const currentSubId = <?= (int)$currentSubId ?>;
+</script>
 
-    // Kategori -> alt kategori
-    $('#categorySelect').on('change', function(){
-        const catId = $(this).val();
-        let html = '<option value="">Seçiniz</option>';
-        if (catId && subMap[catId]) {
-            subMap[catId].forEach(sc => { html += `<option value="${sc.SubCategoryID}">${sc.SubCategoryName}</option>`; });
-        }
-        $('#subCategorySelect').html(html);
-    });
-
-    // Mevcut seçenek silme
-    $(document).on('click', '.removeExistingBtn', function(){
-        const oid = $(this).data('oid');
-        if (!oid) return;
-        // Varsayılan dil satırını sil
-        $(`#options-${defaultLang}-container .option-row[data-oid="${oid}"]`).remove();
-        // Diğer dillerdeki çeviri satırlarını sil
-        Object.keys(languages).forEach(lc => {
-            if (lc === defaultLang) return;
-            $(`#options-${lc}-container .option-row[data-oid="${oid}"]`).remove();
-        });
-        // Sunucuya bildir
-        $('#deletedOptions').append(`<input type="hidden" name="options_delete[]" value="${oid}">`);
-    });
-
-    // Yeni seçenek ekle (create ile aynı davranış)
-    $('#addNewOptionBtn').on('click', function(){
-        const defC = $(`#options-${defaultLang}-container`);
-        const newIndex = defC.find('.option-row[data-new="1"]').length;
-
-        defC.append(`
-            <div class="option-row" data-new="1" data-new-index="${newIndex}">
-                <input type="text" name="options_new[name][]" class="form-control" placeholder="Seçenek adı (<?= strtoupper($defaultLang) ?>)">
-                <input type="number" step="0.01" name="options_new[price][]" class="form-control" placeholder="Fiyat (₺)">
-                <button type="button" class="btn btn-outline-danger removeNewBtn">&times;</button>
-            </div>
-        `);
-
-        Object.keys(languages).forEach(lc => {
-            if (lc === defaultLang) return;
-            $(`#options-${lc}-container`).append(`
-                <div class="option-row" data-new="1" data-new-index="${newIndex}">
-                    <input type="text" name="options_new_tr[${lc}][name][]" class="form-control" placeholder="Seçenek adı (çeviri: ${lc.toUpperCase()})">
-                </div>
-            `);
-        });
-    });
-
-    // Yeni seçenek satırı kaldır
-    $(document).on('click', '.removeNewBtn', function(){
-        const $row = $(this).closest('.option-row');
-        const idx = $row.data('new-index');
-        $row.remove();
-        Object.keys(languages).forEach(lc => {
-            if (lc === defaultLang) return;
-            $(`#options-${lc}-container .option-row[data-new-index="${idx}"]`).remove();
-        });
-    });
-
-    // Yeni resimler: önizleme + X ile kaldırma (DataTransfer)
-    const input   = document.getElementById('newImagesInput');
-    const preview = document.getElementById('newImagesPreview');
-    let selectedFiles = [];
-
-    function syncInput() {
-        const dt = new DataTransfer();
-        selectedFiles.forEach(f => dt.items.add(f));
-        input.files = dt.files;
-    }
-
-    function renderPreviews(){
-        preview.innerHTML = '';
-        selectedFiles.forEach((file, idx) => {
-            if (!file.type || !file.type.startsWith('image/')) return;
-            const url  = URL.createObjectURL(file);
-            const card = document.createElement('div');
-            card.className = 'image-card';
-
-            const img  = document.createElement('img');
-            img.src = url;
-            img.onload = () => URL.revokeObjectURL(url);
-
-            const btn  = document.createElement('button');
-            btn.type = 'button';
-            btn.className = 'img-remove';
-            btn.innerHTML = '&times;';
-            btn.title = 'Bu resmi kaldır';
-            btn.addEventListener('click', () => {
-                selectedFiles.splice(idx, 1);
-                syncInput();
-                renderPreviews();
-            });
-
-            card.appendChild(img);
-            card.appendChild(btn);
-            preview.appendChild(card);
-        });
-    }
-
-    if (input) {
-        input.addEventListener('change', e => {
-            const newFiles = Array.from(e.target.files || []);
-            newFiles.forEach(f => { if (f.type && f.type.startsWith('image/')) selectedFiles.push(f); });
-            syncInput();
-            renderPreviews();
-        });
-    }
-})();
-
+<!-- Sayfaya özel JS -->
+<script src="/assets/js/items_edit.js"></script>
 
 <?php include __DIR__ . '/../includes/footer.php'; ?>
