@@ -8,9 +8,78 @@ $lang  = $_GET['lang']  ?? null;
 
 if (!$hash) die('Geçersiz link!');
 
-// Restoran bilgileri
-$stmt = $pdo->prepare("SELECT RestaurantID, Name, BackgroundImage, DefaultLanguage FROM Restaurants WHERE MD5(RestaurantID) = ?");
-$stmt->execute([$hash]);
+if (!defined('RESTMENU_HASH_PEPPER')) {
+    define('RESTMENU_HASH_PEPPER', 'CHANGE_ME_TO_A_LONG_RANDOM_SECRET_STRING'); // restaurant_info.php ile aynı olsun
+}
+function table_public_hash_local(int $rid, string $code): string {
+    return substr(hash('sha256', $rid . '|' . $code . '|' . RESTMENU_HASH_PEPPER), 0, 24);
+}
+
+$tableName = null;
+$foundRestaurantId = null;
+
+// Masaları tek geçişte tara ve hash ile eşle
+$__t = $pdo->query("SELECT RestaurantID, Code, Name, IsActive FROM RestaurantTables");
+while ($__r = $__t->fetch(PDO::FETCH_ASSOC)) {
+    if (hash_equals(table_public_hash_local((int)$__r['RestaurantID'], $__r['Code']), $hash)) {
+        if (empty($__r['IsActive'])) { die('Bu masa şu anda pasif durumda.'); }
+        $tableName = $__r['Name'];
+        $foundRestaurantId = (int)$__r['RestaurantID'];
+        break;
+    }
+}
+if ($foundRestaurantId === null) { die('Geçersiz bağlantı (masa bulunamadı)!'); }
+
+/* ====== YENİ: hash'ten MASA + RESTORAN bul (restaurant_info.php ile uyumlu) ====== */
+if (!defined('RESTMENU_HASH_PEPPER')) {
+    // restaurant_info.php / tables.php ile aynı sabit olmalı
+    define('RESTMENU_HASH_PEPPER', 'CHANGE_ME_TO_A_LONG_RANDOM_SECRET_STRING');
+}
+
+function resolve_table_by_hash(PDO $pdo, string $hash) {
+    // Tüm masaları hafifçe dolaşarak birden fazla olası hash şemasını dener.
+    // Böylece restaurant_info.php veya QR üretimindeki şeman neyse ona uyum sağlar.
+    $stmt = $pdo->query("SELECT RestaurantID, Code, Name, IsActive FROM RestaurantTables");
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    foreach ($rows as $r) {
+        $candidates = [];
+
+        // 1) sha256 + pepper, 24 karakter (bizim yeni önerdiğimiz şema)
+        $candidates[] = substr(hash('sha256', $r['RestaurantID'].'|'.$r['Code'].'|'.RESTMENU_HASH_PEPPER), 0, 24);
+
+        // 2) md5(RestaurantID-Code) (önceki mesajda anlattığımız alternatif)
+        $candidates[] = md5($r['RestaurantID'].'-'.$r['Code']);
+
+        // 3) md5(RestaurantIDCode) (bazı projelerde böyle kullanılmış olabilir)
+        $candidates[] = md5($r['RestaurantID'].$r['Code']);
+
+        // 4) md5(Code)
+        $candidates[] = md5($r['Code']);
+
+        // 5) ham Code (bazı eski kurulumlarda direkt code kullanılmış olabilir)
+        $candidates[] = $r['Code'];
+
+        foreach ($candidates as $cand) {
+            if (hash_equals($cand, $hash)) {
+                return $r; // doğru masa bulundu
+            }
+        }
+    }
+    return null;
+}
+
+$tableRow = resolve_table_by_hash($pdo, $hash);
+if (!$tableRow) {
+    die('Geçersiz link!');
+}
+if (!$tableRow['IsActive']) {
+    die('Bu masa şu anda pasif durumda.');
+}
+
+// Seçilen masanın restoranını getir
+$stmt = $pdo->prepare("SELECT RestaurantID, Name, BackgroundImage, DefaultLanguage FROM Restaurants WHERE RestaurantID = ?");
+$stmt->execute([$tableRow['RestaurantID']]);
 $restaurant = $stmt->fetch(PDO::FETCH_ASSOC);
 if (!$restaurant) die('Geçersiz link!');
 
@@ -18,6 +87,7 @@ $restaurantId     = (int)$restaurant['RestaurantID'];
 $restaurantName   = $restaurant['Name'];
 $backgroundImage  = $restaurant['BackgroundImage'];
 if (!$lang) $lang = $restaurant['DefaultLanguage'] ?: 'tr';
+/* ====== /YENİ KISIM ====== */
 
 // Desteklenen diller (RestaurantLanguages + Languages)
 $langStmt = $pdo->prepare("
@@ -169,7 +239,7 @@ body {
 .lang-switch { display:flex; gap:8px; flex-wrap:wrap; }
 .lang-switch a {
   display:inline-flex; align-items:center; gap:6px;
-  padding:6px 12px; border-radius:20px; font-weight:600; text-decoration:none;
+  padding:2px 4px; border-radius:10px; font-weight:600; text-decoration:none;
   border:1px solid <?= $theme === 'dark' ? '#555' : '#ccc' ?>;
   <?= $theme === 'dark' ? 'background:#1e1e1e;color:#eee;' : 'background:#fff;color:#333;' ?>
 }
@@ -268,12 +338,19 @@ section { scroll-margin-top: 80px; }
           </a>
         <?php endforeach; ?>
       <?php endif; ?>
+     <!-- 
+        <br>
+        <?php if (!empty($tableName)): ?>
+        <h5 class="text-decoration-none <?= $theme === 'dark' ? 'text-light' : 'text-dark' ?>">Masa: <?= htmlspecialchars($tableName) ?></h5>
+        <?php endif; ?>
+        -->
     </div>
   </div>
 
 <?php if (!$catId): ?>
   <!-- Ana Sayfa (Kategori listesi) -->
   <h1 class="mb-4 text-center"><?= htmlspecialchars($restaurantName) ?></h1>
+
   <div class="row g-4 category-grid">
     <?php foreach ($categories as $cat): ?>
       <div class="col-12 col-md-6 col-lg-4">

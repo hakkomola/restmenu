@@ -131,6 +131,15 @@ $qr2Img = $scheme . '://' . $host . $base . '/generate_qr.php?hash=' . $hash . '
                 </div>
             </div>
         </div>
+         <div class="col-md-6">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title">Restoran Masaları</h5>
+                    <p class="card-text">Restoran masalarınızı oluşturun/düzenleyin.</p>
+                    <a href="../restaurants/tables.php" class="btn btn-warning">Restoran Masaları</a>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 

@@ -9,15 +9,51 @@ $catId  = $_GET['cat']   ?? null; // 🔸 geri için kategori bilgisini koru
 
 if (!$hash || !$itemId) die('Geçersiz link!');
 
-// Restoran bilgisi (+ varsayılan dil)
-$stmt = $pdo->prepare("SELECT RestaurantID, Name, DefaultLanguage FROM Restaurants WHERE MD5(RestaurantID) = ?");
-$stmt->execute([$hash]);
+/* ====== HASH çözümü (masa + restoran tespiti) ====== */
+if (!defined('RESTMENU_HASH_PEPPER')) {
+    define('RESTMENU_HASH_PEPPER', 'CHANGE_ME_TO_A_LONG_RANDOM_SECRET_STRING');
+}
+
+function resolve_table_by_hash(PDO $pdo, string $hash) {
+    $stmt = $pdo->query("SELECT RestaurantID, Code, Name, IsActive FROM RestaurantTables");
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($rows as $r) {
+        $candidates = [];
+        $candidates[] = substr(hash('sha256', $r['RestaurantID'].'|'.$r['Code'].'|'.RESTMENU_HASH_PEPPER), 0, 24);
+        $candidates[] = md5($r['RestaurantID'].'-'.$r['Code']);
+        $candidates[] = md5($r['RestaurantID'].$r['Code']);
+        $candidates[] = md5($r['Code']);
+        $candidates[] = $r['Code'];
+        foreach ($candidates as $cand) {
+            if (hash_equals($cand, $hash)) {
+                return $r;
+            }
+        }
+    }
+    return null;
+}
+
+$tableRow = resolve_table_by_hash($pdo, $hash);
+if (!$tableRow) {
+    die('Geçersiz veya tanınmayan bağlantı!');
+}
+if (!$tableRow['IsActive']) {
+    die('Bu masa şu anda pasif durumda.');
+}
+
+// Restoran bilgisi
+$stmt = $pdo->prepare("SELECT RestaurantID, Name, DefaultLanguage FROM Restaurants WHERE RestaurantID = ?");
+$stmt->execute([$tableRow['RestaurantID']]);
 $restaurant = $stmt->fetch(PDO::FETCH_ASSOC);
 if (!$restaurant) die('Geçersiz restoran bağlantısı!');
-
 $restaurantId   = (int)$restaurant['RestaurantID'];
 $restaurantName = $restaurant['Name'];
 if (!$lang) $lang = $restaurant['DefaultLanguage'] ?: 'tr';
+
+// Masanın adı (ekranda test için görebil)
+$tableName = $tableRow['Name'];
+/* ====== /HASH çözümü ====== */
+
 
 // Desteklenen diller (RestaurantLanguages + Languages)
 $langStmt = $pdo->prepare("
@@ -134,7 +170,7 @@ body {
 .lang-switch { display:flex; gap:8px; flex-wrap:wrap; }
 .lang-switch a {
   display:inline-flex; align-items:center; gap:6px;
-  padding:6px 12px; border-radius:20px; font-weight:600; text-decoration:none;
+  padding:2px 4px; border-radius:10px; font-weight:600; text-decoration:none;
   border:1px solid <?= $theme === 'dark' ? '#555' : '#ccc' ?>;
   <?= $theme === 'dark' ? 'background:#1e1e1e;color:#eee;' : 'background:#fff;color:#333;' ?>
 }
@@ -236,6 +272,8 @@ body {
   <!-- Üst Bilgi -->
   <div class="page-header">
     <h1><?= htmlspecialchars($restaurantName) ?></h1>
+   <!-- <h5 ><?= htmlspecialchars($tableName) ?></h5> -->
+
     <h3><?= htmlspecialchars($item['MenuNameDisp']) ?></h3>
   </div>
 
