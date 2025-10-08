@@ -15,6 +15,9 @@ if (!$hash) {
     die('Hash parametresi bulunamadı.');
 }
 
+$theme = $_GET['theme'] ?? 'light'; // light veya dark tema bilgisi alınır
+
+
 /**
  * tables.php dosyasındakiyle aynı hash çözümleme formülü
  */
@@ -66,11 +69,14 @@ $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' :
 $host   = $_SERVER['HTTP_HOST'];
 $base   = str_replace('/restaurants','', rtrim(dirname($_SERVER['SCRIPT_NAME']), '/\\'));
 
+
 // Menü linki (müşteri QR'dan buraya yönlenecek)
-$tableLink = $scheme . '://' . $host . $base . '/restaurant_info.php?hash=' . urlencode($hash);
+$tableLink = $scheme . '://' . $host . $base . '/restaurant_info.php?hash=' . urlencode($hash) . '&theme=' . urlencode($theme);
+
 
 // Dashboard’takiyle aynı QR üretim mantığı
-$qrImg = $scheme . '://' . $host . $base . '/generate_qr.php?hash=' . urlencode($hash);
+$qrImg = $scheme . '://' . $host . $base . '/generate_qr.php?hash=' . urlencode($hash) . '&theme=' . urlencode($theme);
+
 ?>
 
 <!DOCTYPE html>

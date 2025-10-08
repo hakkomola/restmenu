@@ -88,7 +88,56 @@ $base   = str_replace('/restaurants','', rtrim(dirname($_SERVER['SCRIPT_NAME']),
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <style>
     .table-actions form { display:inline-block; margin-right:.25rem; }
-    .qr-preview img { width:100px; height:100px; object-fit:contain; }
+    ..qr-box {
+  border: 1px solid #dee2e6;
+  border-radius: 10px;
+  padding: 10px;
+  text-align: center;
+  background: #fafafa;
+  height: 100%;
+}
+.qr-box h6 {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.qr-box img {
+  width: 90px;
+  height: 90px;
+  object-fit: contain;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  background: #fff;
+  padding: 3px;
+}
+.qr-btns a {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.8rem;
+}
+.qr-links {
+  font-size: 0.8rem;
+  word-break: break-all;
+}
+
+/* 🔸 Mobil düzen için ekleme */
+@media (max-width: 768px) {
+  .qr-box {
+    margin-bottom: 10px;
+  }
+  .row.g-2 {
+    display: flex;
+    flex-direction: column;
+  }
+  .row.g-2 .col-6 {
+    width: 100%;
+  }
+  .qr-box img {
+    width: 120px;
+    height: 120px;
+  }
+}
+
   </style>
 </head>
 <body>
@@ -142,12 +191,12 @@ $base   = str_replace('/restaurants','', rtrim(dirname($_SERVER['SCRIPT_NAME']),
           <?php if (count($tables) > 0): ?>
             <div class="table-responsive">
               <table class="table align-middle">
-                <thead>
+                <thead class="table-light">
                   <tr>
                     <th>#</th>
                     <th>Masa Adı</th>
                     <th>Durum</th>
-                    <th>Link & QR</th>
+                    <th style="width: 300px;">QR Kodlar</th>
                     <th>İşlemler</th>
                   </tr>
                 </thead>
@@ -161,24 +210,45 @@ $base   = str_replace('/restaurants','', rtrim(dirname($_SERVER['SCRIPT_NAME']),
                   ?>
                   <tr>
                     <td><?= $i + 1 ?></td>
-                    <td><?= htmlspecialchars($t['Name']) ?></td>
+                    <td><strong><?= htmlspecialchars($t['Name']) ?></strong></td>
                     <td><?= $t['IsActive'] ? '<span class="badge bg-success">Aktif</span>' : '<span class="badge bg-secondary">Pasif</span>' ?></td>
-                    <td class="qr-preview">
-                      <div><strong>Light:</strong> <a href="<?= htmlspecialchars($linkLight) ?>" target="_blank">Link</a></div>
-                      <img src="<?= htmlspecialchars($qrLight) ?>" alt="Light QR">
-                      <div class="mt-2"><strong>Dark:</strong> <a href="<?= htmlspecialchars($linkDark) ?>" target="_blank">Link</a></div>
-                      <img src="<?= htmlspecialchars($qrDark) ?>" alt="Dark QR">
+                    <td>
+                      <div class="row g-2">
+                        <div class="col-6">
+                          <div class="qr-box">
+                            <h6>Light</h6>
+                            <img src="<?= htmlspecialchars($qrLight) ?>" alt="Light QR">
+                            <div class="qr-links mt-1">
+                              <a href="<?= htmlspecialchars($linkLight) ?>" target="_blank">Link</a>
+                            </div>
+                            <div class="qr-btns">
+                              <a href="table_qr.php?hash=<?= urlencode($publicHash) ?>&theme=light" target="_blank" class="btn btn-sm btn-outline-info w-100">Yazdır</a>
+                            </div>
+                          </div>
+                        </div>
+                        <div class="col-6">
+                          <div class="qr-box">
+                            <h6>Dark</h6>
+                            <img src="<?= htmlspecialchars($qrDark) ?>" alt="Dark QR">
+                            <div class="qr-links mt-1">
+                              <a href="<?= htmlspecialchars($linkDark) ?>" target="_blank">Link</a>
+                            </div>
+                            <div class="qr-btns">
+                              <a href="table_qr.php?hash=<?= urlencode($publicHash) ?>&theme=dark" target="_blank" class="btn btn-sm btn-outline-dark w-100">Yazdır</a>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     </td>
-                    <td class="table-actions">
-                      <form method="post">
+                    <td class="table-actions text-center">
+                      <form method="post" style="display:inline-block;">
                         <input type="hidden" name="action" value="toggle">
                         <input type="hidden" name="table_id" value="<?= (int)$t['TableID'] ?>">
                         <button class="btn btn-sm <?= $t['IsActive'] ? 'btn-warning' : 'btn-success' ?>">
                           <?= $t['IsActive'] ? 'Pasif Yap' : 'Aktif Yap' ?>
                         </button>
                       </form>
-
-                      <form method="post" onsubmit="return confirm('Bu masayı silmek istediğinize emin misiniz?');">
+                      <form method="post" onsubmit="return confirm('Bu masayı silmek istediğinize emin misiniz?');" style="display:inline-block;">
                         <input type="hidden" name="action" value="delete">
                         <input type="hidden" name="table_id" value="<?= (int)$t['TableID'] ?>">
                         <button class="btn btn-sm btn-danger">Sil</button>

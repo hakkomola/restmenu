@@ -42,38 +42,7 @@ $qr2Img = $scheme . '://' . $host . $base . '/generate_qr.php?hash=' . $hash . '
 <body>
 
 <div class="container mt-5">
-    <h2>Public Menü Linkleri ve QR Kodlar</h2>
-    <div class="row g-4 mb-4 text-center">
-        <!-- Menü 1 -->
-        <div class="col-12 col-md-4">
-            <div class="card h-100">
-                <div class="card-body">
-                    <p>Light Görünüm. Ekranda her satırda iki resim olacak şekilde görünür, alt kategoriler tek resim olarak görünür denemek için Menüyü Göster butonuna tıklayabilirsiniz.</p>
-                    <a href="<?= htmlspecialchars($menuLink) ?>" target="_blank" class="btn btn-outline-primary mb-2">Menüyü Göster</a>
-                    <div>
-                        <img src="<?= htmlspecialchars($qrImg) ?>" class="qr-img" alt="QR Kod">
-                    </div>
-                    <p class="mt-2"><small class="text-muted"><?= htmlspecialchars($menuLink) ?></small></p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Menü 2 -->
-        <div class="col-12 col-md-4">
-            <div class="card h-100">
-                <div class="card-body">
-                    <p>Dark Dark Görünüm. Ekranda her satırda iki resim olacak şekilde görünür, alt kategoriler tek resim olarak görünür denemek için Menüyü Göster butonuna tıklayabilirsiniz.</p>
-                    <a href="<?= htmlspecialchars($menu2Link) ?>" target="_blank" class="btn btn-outline-primary mb-2">Menüyü Göster</a>
-                    <div>
-                        <img src="<?= htmlspecialchars($qr2Img) ?>" class="qr-img" alt="QR Kod">
-                    </div>
-                    <p class="mt-2"><small class="text-muted"><?= htmlspecialchars($menu2Link) ?></small></p>
-                </div>
-            </div>
-        </div>
-
-        
-    </div>
+   
 
 
     <div class="row g-4 mt-4">
