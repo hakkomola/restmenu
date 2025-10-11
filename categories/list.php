@@ -71,19 +71,44 @@ include __DIR__ . '/../includes/navbar.php';
     </div>
 </div>
 
+
+<!-- jQuery (varsa tekrar yüklemeyin) -->
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+
+<!-- jQuery UI (Sortable bunun içinde) -->
+<link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
+<script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+
+<!-- TouchPunch: jQuery UI'yi mobil dokunuşla çalıştırır -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui-touch-punch/0.2.3/jquery.ui.touch-punch.min.js"></script>
+
 <script>
+    
+
 $(function(){
-    $("#sortable").sortable({
-        placeholder: "sortable-placeholder",
-        handle: ".drag-handle",
-        update: function(event, ui) {
-            let order = $(this).children().map(function(){ return $(this).data('id'); }).get();
-            $.post('update_category_order.php', {order: order}, function(res){
-                console.log(res);
-            });
-        }
-    });
+  $("#sortable").sortable({
+    items: "> tr",                 // sadece satırlar
+    handle: ".drag-handle",        // sadece tutamaçtan sürükle
+    axis: "y",                     // dikey sürükleme
+    placeholder: "sortable-placeholder",
+    helper: function(e, tr) {      // tablo hücre genişliği sabit kalsın
+      var $originals = tr.children();
+      var $helper = tr.clone();
+      $helper.children().each(function(index){
+        $(this).width($originals.eq(index).width());
+      });
+      return $helper;
+    },
+    update: function(){
+      var order = $(this).children().map(function(){ return $(this).data('id'); }).get();
+      $.post('update_category_order.php', { order: order }, function(res){
+        console.log(res);
+      });
+    }
+  }).disableSelection();
 });
+
+
 </script>
 
 

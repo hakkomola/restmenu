@@ -55,6 +55,9 @@
       <div class="option-row" data-new="1" data-new-index="${newIndex}">
         <input type="text" name="options_new[name][]" class="form-control" placeholder="Seçenek adı (${defaultLang.toUpperCase()})">
         <input type="number" step="0.01" name="options_new[price][]" class="form-control" placeholder="Fiyat (₺)">
+        <!-- TEK GRUP: tüm radio'lar options_def[IsDefault] altında. yeni satırlar new-{index} değerini taşır -->
+        <input type="radio" class="opt-new-default" name="options_def[IsDefault]" value="new-${newIndex}">
+        <label>Varsayılan</label>
         <button type="button" class="btn btn-outline-danger removeNewBtn">&times;</button>
       </div>
     `);
@@ -129,4 +132,14 @@
       renderPreviews();
     });
   }
+
+  // (opsiyonel) submit anında new-X değerini güncel DOM index'iyle yeniden senkronlamak istersen:
+  $('form').on('submit', function(){
+    const $checked = $('input[type="radio"][name="options_def[IsDefault]"]:checked');
+    if ($checked.length && $checked.val().startsWith('new-')) {
+      const rows = $(`#options-${defaultLang}-container .option-row[data-new="1"]`);
+      const idx = rows.index($checked.closest('.option-row'));
+      if (idx >= 0) $checked.val(`new-${idx}`);
+    }
+  });
 })();

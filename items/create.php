@@ -63,7 +63,6 @@ try {
 
 /** 🔹 FORM GÖNDERİMİ */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // NOT: Kategori-AltKategori alanlarını sekmelerin DIŞINA aldık; isimleri burada okunuyor
     $subCategoryId = isset($_POST['sub_category_id']) ? (int)$_POST['sub_category_id'] : 0;
     $price         = isset($_POST['price']) ? (float)$_POST['price'] : 0.0;
     $trans         = $_POST['trans'] ?? [];
@@ -72,9 +71,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $defDesc = trim($trans[$defaultLang]['desc'] ?? '');
 
     // Yeni seçenekler
-    $optNewNames  = $_POST['options_new']['name']  ?? [];
-    $optNewPrices = $_POST['options_new']['price'] ?? [];
-    $optNewTrPost = $_POST['options_new_tr'] ?? [];
+    $optNewNames   = $_POST['options_new']['name']  ?? [];
+    $optNewPrices  = $_POST['options_new']['price'] ?? [];
+    $optNewTrPost  = $_POST['options_new_tr']       ?? []; // [lang]['name'][]
+
+    // Tek radio grubu (options_def[IsDefault] -> "new-0", "new-1", ...)
+    $selectedDefault = $_POST['options_def']['IsDefault'] ?? null;
+    $optNewDefaultIndex = null;
+    if (is_string($selectedDefault) && strpos($selectedDefault, 'new-') === 0) {
+        $optNewDefaultIndex = substr($selectedDefault, 4);
+    }
 
     if ($defName === '') {
         $errors[] = strtoupper($defaultLang) . ' dilinde ürün adı zorunludur.';
@@ -87,12 +93,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             $pdo->beginTransaction();
 
-            // 1️⃣ Ürünü ekle
+            // 1) Ürün
             $ins = $pdo->prepare('INSERT INTO MenuItems (SubCategoryID, RestaurantID, MenuName, Description, Price) VALUES (?, ?, ?, ?, ?)');
             $ins->execute([$subCategoryId, $restaurantId, $defName, ($defDesc !== '' ? $defDesc : null), $price]);
             $menuItemId = (int)$pdo->lastInsertId();
 
-            // 2️⃣ Çeviriler
+            // 2) Çeviriler
             if (!empty($languages)) {
                 $insTr = $pdo->prepare("INSERT INTO MenuItemTranslations ($fkCol, LangCode, Name, Description) VALUES (:iid, :lang, :name, :desc)");
                 foreach ($languages as $L) {
@@ -111,20 +117,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
 
-            // 3️⃣ Seçenekler
+            // 3) Seçenekler
             $newOids = [];
             if (!empty($optNewNames)) {
-                $insO = $pdo->prepare('INSERT INTO MenuItemOptions (MenuItemID, OptionName, Price, SortOrder) VALUES (?, ?, ?, ?)');
+                $insO = $pdo->prepare('INSERT INTO MenuItemOptions (MenuItemID, OptionName, Price, IsDefault, SortOrder) VALUES (?, ?, ?, ?, ?)');
                 foreach ($optNewNames as $i => $nm) {
-                    $nm = trim($nm ?? '');
+                    $nm  = trim($nm ?? '');
                     if ($nm === '') continue;
                     $prc = isset($optNewPrices[$i]) ? (float)$optNewPrices[$i] : 0.0;
-                    $insO->execute([$menuItemId, $nm, $prc, $i]);
+
+                    // sadece seçilen index 1, diğerleri 0
+                    $isDef = ($optNewDefaultIndex !== null && (string)$i === (string)$optNewDefaultIndex) ? 1 : 0;
+
+                    $insO->execute([$menuItemId, $nm, $prc, $isDef, $i]);
                     $newOids[$i] = (int)$pdo->lastInsertId();
                 }
             }
 
-            // 4️⃣ Seçenek çevirileri
+            // 4) Seçenek çevirileri
             if (!empty($newOids) && !empty($languages)) {
                 $insOTr = $pdo->prepare('INSERT INTO MenuItemOptionTranslations (OptionID, LangCode, Name) VALUES (?, ?, ?)');
                 foreach ($languages as $L) {
@@ -139,7 +149,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
 
-            // 5️⃣ Resimler
+            // 5) Resimler
             if (!empty($_FILES['images']['name'][0])) {
                 $uploadsDir = __DIR__ . '/../uploads/';
                 if (!is_dir($uploadsDir)) mkdir($uploadsDir, 0777, true);
@@ -172,6 +182,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $pageTitle = "Yeni Menü Öğesi Ekle";
 include __DIR__ . '/../includes/header.php';
 include __DIR__ . '/../includes/navbar.php';
+
 ?>
 
 <div class="container mt-5" style="max-width: 900px;">
@@ -259,8 +270,7 @@ include __DIR__ . '/../includes/navbar.php';
             <hr class="my-4">
 
             <div class="mb-3">
-                <label class="form-label">Varsayılan Fiyat (₺)</label>
-                <input type="number" step="0.01" name="price" class="form-control">
+                <input type="hidden" step="0.01" name="price" class="form-control">
                 <div class="form-text">Bu fiyat seçenek belirtilmediğinde geçerlidir.</div>
             </div>
 
@@ -293,34 +303,46 @@ include __DIR__ . '/../includes/navbar.php';
         let html = '<option value="">Seçiniz</option>';
         if (catId && subCategoriesMap[catId]){
             subCategoriesMap[catId].forEach(sub => {
-                html += `<option value="${sub.SubCategoryID}">${sub.SubCategoryName}</option>`;
+                html += '<option value="' + sub.SubCategoryID + '">' + sub.SubCategoryName + '</option>';
             });
         }
         $('#subCategorySelect').html(html);
     });
 
     // === Seçenekler (dinamik satırlar)
-    const defContainer = $(`#options-${defaultLang}-container`);
+    const defContainer = $('#options-' + defaultLang + '-container');
 
     function addOptionRow(){
-        // Varsayılan dil satırı (ad + fiyat + sil)
-        defContainer.append(`
-            <div class="option-row" data-new="1">
-                <input type="text" name="options_new[name][]" class="form-control" placeholder="Seçenek adı (<?= strtoupper($defaultLang) ?>)">
-                <input type="number" step="0.01" name="options_new[price][]" class="form-control" placeholder="Fiyat (₺)">
-                <button type="button" class="btn btn-outline-danger removeOptionBtn">&times;</button>
-            </div>
-        `);
+      const newIndex = defContainer.find('.option-row[data-new="1"]').length;
 
-        // Diğer diller için çeviri satırları
-        Object.keys(languages).forEach(lc => {
-            if (lc === defaultLang) return;
-            $(`#options-${lc}-container`).append(`
-                <div class="option-row" data-new="1">
-                    <input type="text" name="options_new_tr[${lc}][name][]" class="form-control" placeholder="Seçenek adı (çeviri: ${lc.toUpperCase()})">
-                </div>
-            `);
-        });
+      // Varsayılan dil satırı (ad + fiyat + tek-grup radio + sil)
+      defContainer.append(
+        '<div class="option-row" data-new="1" data-new-index="' + newIndex + '">' +
+          '<input type="text" name="options_new[name][]" class="form-control" placeholder="Seçenek adı (<?= strtoupper($defaultLang) ?>)">' +
+          '<input type="number" step="0.01" name="options_new[price][]" class="form-control" placeholder="Fiyat (₺)">' +
+          '<input type="radio" name="options_def[IsDefault]" value="new-' + newIndex + '">' +
+          '<label>Varsayılan</label>' +
+          '<button type="button" class="btn btn-outline-danger removeOptionBtn">&times;</button>' +
+        '</div>'
+      );
+
+      // İlk eklemede default'u otomatik seç
+      const group = $('input[type="radio"][name="options_def[IsDefault]"]');
+      if (group.filter(':checked').length === 0) {
+        defContainer
+          .find('.option-row[data-new-index="' + newIndex + '"] input[type="radio"][name="options_def[IsDefault]"]')
+          .prop('checked', true);
+      }
+
+      // Diğer diller için çeviri satırı
+      Object.keys(languages).forEach(function(lc){
+        if (lc === defaultLang) return;
+        $('#options-' + lc + '-container').append(
+          '<div class="option-row" data-new="1" data-new-index="' + newIndex + '">' +
+            '<input type="text" name="options_new_tr[' + lc + '][name][]" class="form-control" placeholder="Seçenek adı (çeviri: ' + lc.toUpperCase() + ')">' +
+          '</div>'
+        );
+      });
     }
 
     // Varsayılan dil sekmesindeki buton
@@ -328,12 +350,21 @@ include __DIR__ . '/../includes/navbar.php';
 
     // Yeni seçenek satırı silme (varsayılan + diğer diller eş dizin)
     $(document).on('click', '.removeOptionBtn', function(){
-        const idx = $(this).closest('.option-row').index();
-        defContainer.find('.option-row[data-new="1"]').eq(idx).remove();
-        Object.keys(languages).forEach(lc => {
+        const $row = $(this).closest('.option-row');
+        const idx = $row.data('new-index');
+        // aynı index'teki tüm dillerdeki new satırları kaldır
+        defContainer.find('.option-row[data-new="1"][data-new-index="' + idx + '"]').remove();
+        Object.keys(languages).forEach(function(lc){
             if (lc === defaultLang) return;
-            $(`#options-${lc}-container .option-row[data-new="1"]`).eq(idx).remove();
+            $('#options-' + lc + '-container .option-row[data-new="1"][data-new-index="' + idx + '"]').remove();
         });
+    });
+
+    // --- sayfa açılışında bir kez otomatik seçenek satırı ekle ---
+    $(window).on('load', function(){
+      if (defContainer.length && defContainer.find('.option-row').length === 0) {
+        addOptionRow();
+      }
     });
 
     // === Resim önizleme + X ile kaldırma
@@ -357,14 +388,14 @@ include __DIR__ . '/../includes/navbar.php';
 
             const img  = document.createElement('img');
             img.src = url;
-            img.onload = () => URL.revokeObjectURL(url);
+            img.onload = function(){ URL.revokeObjectURL(url); };
 
             const btn  = document.createElement('button');
             btn.type = 'button';
             btn.className = 'img-remove';
             btn.innerHTML = '&times;';
             btn.title = 'Bu resmi kaldır';
-            btn.addEventListener('click', () => {
+            btn.addEventListener('click', function(){
                 selectedFiles.splice(idx, 1);
                 syncInput();
                 renderPreviews();
@@ -377,9 +408,9 @@ include __DIR__ . '/../includes/navbar.php';
     }
 
     if (input) {
-        input.addEventListener('change', e => {
+        input.addEventListener('change', function(e){
             const newFiles = Array.from(e.target.files || []);
-            newFiles.forEach(f => {
+            newFiles.forEach(function(f){
                 if (f && f.type && f.type.startsWith('image/')) selectedFiles.push(f);
             });
             syncInput();

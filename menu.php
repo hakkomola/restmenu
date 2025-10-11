@@ -166,15 +166,20 @@ if ($catId) {
 
     // Ürünleri dil bazlı çeviriyle çekecek statement
     $sqlItems = "
-        SELECT mi.*,
+        SELECT mi.MenuItemID,mi.RestaurantID,mi.MenuName,mi.Description,mo.Price,mi.SortOrder,mi.SubCategoryID,
                COALESCE(mt.Name, mi.MenuName)         AS MenuNameDisp,
                COALESCE(mt.Description, mi.Description) AS DescriptionDisp
         FROM MenuItems mi
         LEFT JOIN MenuItemTranslations mt
                ON mt.$itemFkCol = mi.MenuItemID AND mt.LangCode = ?
+        LEFT JOIN MenuItemOptions mo 
+			   ON mi.MenuItemID=mo.MenuItemID and IsDefault  = 1  
         WHERE mi.SubCategoryID = ?
         ORDER BY MenuNameDisp
     ";
+
+
+
     $stmtItems = $pdo->prepare($sqlItems);
 
     foreach ($allSubcategories as $sub) {

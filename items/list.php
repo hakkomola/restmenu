@@ -125,6 +125,9 @@ include __DIR__ . '/../includes/navbar.php';
 </div>
 
 <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+<!-- SortableJS: mobil + desktop sürükle-bırak -->
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+
 <script>
 $(function() {
   const allSubs = <?= json_encode($allSubcategories) ?>;
@@ -163,17 +166,60 @@ $(function() {
     window.location.href = '?category=' + cat + '&subcategory=' + sub;
   });
 
-  // Sürükle bırak sıralama
-  $("#sortable").sortable({
-    placeholder: "sortable-placeholder",
-    handle: ".drag-handle",
-    update: function(event, ui) {
-      let order = $(this).children().map(function(){ return $(this).data('id'); }).get();
-      $.post('update_menu_order.php', {order: order}, function(res){
-        console.log(res);
-      });
+$(function() {
+  const allSubs = <?= json_encode($allSubcategories) ?>;
+  const currentCat = '<?= $filterCategory ?>';
+  const currentSub = '<?= $filterSubCategory ?>';
+
+  function populateSubcats(catId) {
+    let html = '<option value="">-- Alt Kategori Seç --</option>';
+    if (!catId) {
+      $('#subcategoryFilter').html(html);
+      return;
     }
+    allSubs.forEach(sc => {
+      if (sc.CategoryID == catId) {
+        html += '<option value="' + sc.SubCategoryID + '"' + (sc.SubCategoryID == currentSub ? ' selected' : '') + '>' + sc.SubCategoryName + '</option>';
+      }
+    });
+    $('#subcategoryFilter').html(html);
+  }
+
+  if (currentCat) { populateSubcats(currentCat); }
+
+  $('#categoryFilter').on('change', function() {
+    const catId = $(this).val();
+    populateSubcats(catId);
   });
+
+  $('#categoryFilter, #subcategoryFilter').on('change', function() {
+    const cat = $('#categoryFilter').val() || '';
+    const sub = $('#subcategoryFilter').val() || '';
+    window.location.href = '?category=' + cat + '&subcategory=' + sub;
+  });
+
+  // --- SortableJS ile sürükle-bırak (mobil + desktop) ---
+  const el = document.getElementById('sortable');
+  if (el) {
+    new Sortable(el, {
+      handle: '.drag-handle',
+      animation: 150,
+      direction: 'vertical',
+      onEnd: function () {
+        const order = Array.from(el.children).map(function(tr){
+          return tr.getAttribute('data-id');
+        });
+        // PHP tarafı array bekliyorsa form-encoded gönder
+        fetch('update_menu_order.php', {
+          method: 'POST',
+          headers: {'Content-Type':'application/x-www-form-urlencoded'},
+          body: 'order[]=' + order.join('&order[]=')
+        }).then(r => r.text()).then(console.log);
+      }
+    });
+  }
+});
+
 });
 </script>
 

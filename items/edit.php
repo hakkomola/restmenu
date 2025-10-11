@@ -83,7 +83,7 @@ foreach ($trItmStmt->fetchAll(PDO::FETCH_ASSOC) as $r) {
 }
 
 /** Seçenekler + çevirileri */
-$optsStmt = $pdo->prepare("SELECT OptionID, OptionName, Price, SortOrder FROM MenuItemOptions WHERE MenuItemID = ? ORDER BY SortOrder, OptionID");
+$optsStmt = $pdo->prepare("SELECT OptionID, OptionName, Price, IsDefault, SortOrder FROM MenuItemOptions WHERE MenuItemID = ? ORDER BY SortOrder, OptionID");
 $optsStmt->execute([$itemId]);
 $options = $optsStmt->fetchAll(PDO::FETCH_ASSOC);
 $optIds  = array_column($options, 'OptionID');
@@ -163,9 +163,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $defDesc = trim($trans[$defaultLang]['desc'] ?? '');
     $priceVal = isset($_POST['price']) ? (float)$_POST['price'] : (float)($item['Price'] ?? 0);
 
-    // Seçenekler
+    // Seçenekler (mevcut)
     $optDefNames  = $_POST['options_def']['name']  ?? []; // [OptionID] => name
     $optDefPrices = $_POST['options_def']['price'] ?? []; // [OptionID] => price
+
+    // TEK GRUP: seçili radio tek bir yerde gelir
+    $selectedDefault = $_POST['options_def']['IsDefault'] ?? null; // "23" veya "new-0" gibi
+
     $optDeletes   = $_POST['options_delete']       ?? []; // [OptionID...]
     $optTrPost    = $_POST['options_tr']           ?? []; // options_tr[lang]['name'][OptionID]
 
@@ -173,6 +177,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $optNewNames  = $_POST['options_new']['name']  ?? [];
     $optNewPrices = $_POST['options_new']['price'] ?? [];
     $optNewTrPost = $_POST['options_new_tr']       ?? []; // [lang]['name'][]
+
+    // seçimin türünü ayırt et
+    $optNewDefaultIndex = null;   // "new-#" gelirse buraya index
+    $optDefIsDefault    = null;   // sayı gelirse mevcut OptionID
+    if ($selectedDefault !== null && $selectedDefault !== '') {
+        if (is_string($selectedDefault) && strpos($selectedDefault, 'new-') === 0) {
+            $optNewDefaultIndex = substr($selectedDefault, 4); // 'new-' sonrası
+        } else {
+            $optDefIsDefault = (int)$selectedDefault;
+        }
+    }
 
     if ($defName === '')       $error = strtoupper($defaultLang) . ' dilinde ürün adı zorunludur.';
     elseif ($subCategoryId<=0) $error = 'Lütfen bir alt kategori seçin.';
@@ -217,15 +232,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
 
+            // 3.5) Eğer yeni bir satır default seçilmişse, mevcutların hepsini 0'a çek
+            if ($optNewDefaultIndex !== null) {
+                $pdo->prepare("UPDATE MenuItemOptions SET IsDefault = 0 WHERE MenuItemID = ?")->execute([$itemId]);
+            }
+
             // 4) Mevcut seçenekleri güncelle
             if (!empty($optDefNames)) {
-                $updO = $pdo->prepare("UPDATE MenuItemOptions SET OptionName=?, Price=?, SortOrder=? WHERE OptionID=? AND MenuItemID=?");
+                $updO = $pdo->prepare("UPDATE MenuItemOptions SET OptionName=?, Price=?, IsDefault=?, SortOrder=? WHERE OptionID=? AND MenuItemID=?");
                 $sort = 0;
                 foreach ($optDefNames as $oid => $nm) {
                     $oid = (int)$oid; if ($oid<=0) continue;
                     $nm  = trim($nm ?? '');
                     $prc = isset($optDefPrices[$oid]) ? (float)$optDefPrices[$oid] : 0.0;
-                    $updO->execute([$nm, $prc, $sort++, $oid, $itemId]);
+
+                    // Yeni default seçilmişse mevcutların tümü 0; değilse seçilen mevcut id 1
+                    $isDefOpt = ($optNewDefaultIndex !== null) ? 0 : (($oid === $optDefIsDefault) ? 1 : 0);
+
+                    $updO->execute([$nm, $prc, $isDefOpt, $sort++, $oid, $itemId]);
                 }
             }
 
@@ -253,12 +277,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // 6) Yeni seçenekler
             $newOids = [];
             if (!empty($optNewNames)) {
-                $insO = $pdo->prepare("INSERT INTO MenuItemOptions (MenuItemID, OptionName, Price, SortOrder) VALUES (?, ?, ?, ?)");
+                $insO = $pdo->prepare("INSERT INTO MenuItemOptions (MenuItemID, OptionName, Price, IsDefault, SortOrder) VALUES (?, ?, ?, ?, ?)");
                 $existingCount = (int)$pdo->query("SELECT COUNT(*) FROM MenuItemOptions WHERE MenuItemID = ".$itemId)->fetchColumn();
                 foreach ($optNewNames as $i => $nm) {
                     $nm = trim($nm ?? ''); if ($nm==='') continue;
                     $prc = isset($optNewPrices[$i]) ? (float)$optNewPrices[$i] : 0.0;
-                    $insO->execute([$itemId, $nm, $prc, $existingCount + $i]);
+
+                    // new-# seçilmişse yalnızca o satır 1 olur
+                    $isDefOption = ($optNewDefaultIndex !== null && (string)$i === (string)$optNewDefaultIndex) ? 1 : 0;
+
+                    $insO->execute([$itemId, $nm, $prc, $isDefOption, $existingCount + $i]);
                     $newOids[$i] = (int)$pdo->lastInsertId();
                 }
             }
@@ -393,14 +421,21 @@ include __DIR__ . '/../includes/navbar.php';
                             <?php if ($isDef): ?>
                                 <?php foreach ($options as $op): ?>
                                     <div class="option-row" data-oid="<?= (int)$op['OptionID'] ?>">
-                                        <input type="text" class="form-control"
+                                        <input type="text" 
                                                name="options_def[name][<?= (int)$op['OptionID'] ?>]"
                                                value="<?= htmlspecialchars($op['OptionName']) ?>"
+                                               class="form-control"
                                                placeholder="Seçenek adı">
-                                        <input type="number" step="0.01" class="form-control"
+                                        <input type="number" step="0.01" 
                                                name="options_def[price][<?= (int)$op['OptionID'] ?>]"
                                                value="<?= htmlspecialchars($op['Price']) ?>"
+                                               class="form-control"
                                                placeholder="Fiyat (₺)">
+                                        <input type="radio" 
+                                               name="options_def[IsDefault]"
+                                               value="<?= (int)$op['OptionID'] ?>"
+                                               <?= ($op['IsDefault'] == 1 ? 'checked' : '') ?>>
+                                        <label>Varsayılan</label>     
                                         <button type="button" class="btn btn-outline-danger removeExistingBtn" data-oid="<?= (int)$op['OptionID'] ?>">&times;</button>
                                     </div>
                                 <?php endforeach; ?>
@@ -428,8 +463,8 @@ include __DIR__ . '/../includes/navbar.php';
 
             <!-- Varsayılan fiyat -->
             <div class="mb-3">
-                <label>Varsayılan Fiyat (₺)</label>
-                <input type="number" step="0.01" name="price" class="form-control" value="<?= htmlspecialchars($item['Price'] ?? 0) ?>">
+               
+                <input type="hidden" step="0.01" name="price" class="form-control" value="<?= htmlspecialchars($item['Price'] ?? 0) ?>">
             </div>
 
             <!-- Mevcut Resimler -->
@@ -481,7 +516,7 @@ include __DIR__ . '/../includes/navbar.php';
   const currentSubId = <?= (int)$currentSubId ?>;
 </script>
 
-<!-- Sayfaya özel JS -->
-<script src="/assets/js/items_edit.js"></script>
+<!-- Sayfaya özel JS (cache'i atlamak için versiyonla) -->
+<script src="/assets/js/items_edit.js?v=<?= time() ?>"></script>
 
 <?php include __DIR__ . '/../includes/footer.php'; ?>

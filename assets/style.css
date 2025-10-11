@@ -58,15 +58,35 @@ footer {
    ======================================================= */
 .option-row {
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 8px;
   align-items: center;
+  gap: 10px;
+  flex-wrap: nowrap; /* Alt satıra geçmesin */
 }
-.option-row input {
+
+/* sadece text ve number genişlesin */
+.option-row input[type="text"],
+.option-row input[type="number"] {
   flex: 1 1 45%;
   min-width: 130px;
 }
+
+/* radio sabit küçük kalsın */
+.option-row input[type="radio"] {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;  /* esnemesin */
+  margin: 0;
+}
+
+/* label ve button normal hizalı olsun */
+.option-row label {
+  margin: 0;
+  white-space: nowrap;
+}
+.option-row button {
+  flex: 0 0 auto;
+}
+
 .muted { opacity: .8; font-size: .9rem; }
 
 /* Sekmeler */
@@ -260,3 +280,4 @@ input[type="checkbox"] { width: 16px; height: 16px; accent-color: #0d6efd; }
 .sortable-placeholder { height: 60px; background: #f0f0f0; border: 2px dashed #ccc; }
 .drag-handle { cursor: move; text-align: center; width: 40px; }
 .ui-sortable-helper { background: #e9ecef; }
+

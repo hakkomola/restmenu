@@ -101,7 +101,7 @@ try {
 
 // Menü öğesi bilgisi (çeviri ile)
 $stmt = $pdo->prepare("
-    SELECT m.*,
+    SELECT m.MenuItemID,m.RestaurantID,m.MenuName,m.Description,mo.Price,m.SortOrder,m.SubCategoryID,
            s.SubCategoryID,
            s.SubCategoryName,
            c.CategoryID,
@@ -113,6 +113,8 @@ $stmt = $pdo->prepare("
     LEFT JOIN MenuCategories c ON s.CategoryID = c.CategoryID
     LEFT JOIN MenuItemTranslations mt
            ON mt.$itemFkCol = m.MenuItemID AND mt.LangCode = ?
+    LEFT JOIN MenuItemOptions mo 
+			   ON m.MenuItemID=mo.MenuItemID and IsDefault  = 1  
     WHERE m.MenuItemID = ? AND c.RestaurantID = ?
 ");
 $stmt->execute([$lang, $itemId, $restaurantId]);
