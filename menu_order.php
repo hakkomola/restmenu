@@ -654,6 +654,24 @@ async function removeFromCart(key, clickedEl) {
 document.addEventListener('DOMContentLoaded', () => {
   updateCartSummary();
 
+
+  // ==== Subcategory menü ortalama (ScrollSpy aktif öğeyi merkeze getir) ====
+const scrollSpy = new bootstrap.ScrollSpy(document.body, { target: '#subcategoryNav', offset: 100 });
+
+document.addEventListener('activate.bs.scrollspy', () => {
+  const active = document.querySelector('#subcategoryNav .active');
+  if (!active) return;
+
+  // biraz gecikme ile ortala (daha pürüzsüz)
+  setTimeout(() => {
+    active.scrollIntoView({
+      behavior: 'smooth',
+      inline: 'center',
+      block: 'nearest'
+    });
+  }, 80);
+});
+
   // Tek click delegasyonu
   document.body.addEventListener('click', (e) => {
     const add   = e.target.closest('.add-to-cart');
