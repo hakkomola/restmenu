@@ -391,7 +391,7 @@ section { scroll-margin-top: 80px; }
 
   <?php 
     // Tema bazlı buton rengi: light = primary (mavi), dark = warning (amber)
-    $addBtnColorClass = ($theme === 'dark') ? 'btn-warning' : 'btn-primary';
+    $addBtnColorClass = ($theme === 'dark') ? 'btn-outline-warning' : 'btn-primary';
   ?>
 
   <?php foreach ($subcategories as $sub): ?>

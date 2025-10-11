@@ -324,6 +324,18 @@ section { scroll-margin-top: 80px; }
 
 <div class="container py-4">
 
+ <!-- AD SENSE REKLAM (Responsive) -->
+    <div class="my-4 text-center">
+        <ins class="adsbygoogle"
+             style="display:block;width:100%;max-width:728px;height:90px;margin:0 auto;"
+             data-ad-client="ca-pub-5155686402205048"
+             data-ad-slot="1234567890"
+             data-ad-format="horizontal"></ins>
+        <script>
+             (adsbygoogle = window.adsbygoogle || []).push({});
+        </script>
+    </div>
+    
   <!-- Üst bar: Sol: başlık (ana sayfada), Sağ: dil bayrakları -->
   <div class="topbar">
     <div></div>
