@@ -207,6 +207,14 @@ body {
 }
 .card-title { color: <?= $theme === 'dark' ? '#fff' : '#222' ?>; font-weight:600; }
 .card-text  { color: <?= $theme === 'dark' ? '#ccc' : '#555' ?>; }
+.cart-item-remove {
+  cursor: pointer;
+  user-select: none;
+  text-decoration: none !important;
+  line-height: 1;
+}
+
+
 .price { font-weight:700; font-size:1rem; color: <?= $theme === 'dark' ? '#ff9800' : '#007bff' ?>; }
 .category-img, .menu-img { height:220px; object-fit:cover; width:100%; <?= $theme === 'dark' ? 'filter:brightness(0.9);' : '' ?> }
 
@@ -499,128 +507,11 @@ section { scroll-margin-top: 80px; }
 <div class="toast-container" id="toastContainer"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-<script>
-// Basit toast
-function showToast(message) {
-  const container = document.getElementById('toastContainer');
-  const id = 't' + Math.random().toString(36).slice(2);
-  const html = `
-  <div id="${id}" class="toast align-items-center text-bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true">
-    <div class="d-flex">
-      <div class="toast-body">${message}</div>
-      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-    </div>
-  </div>`;
-  container.insertAdjacentHTML('beforeend', html);
-  const el = document.getElementById(id);
-  const t = new bootstrap.Toast(el, { delay: 1800 });
-  t.show();
-  el.addEventListener('hidden.bs.toast', () => el.remove());
-}
-
-// Sepete ekle (AJAX)
-async function addToCart(itemId, optionId, hash, quantity) {
-  try {
-    const body = new URLSearchParams({ item_id: itemId, option_id: optionId, quantity: quantity || 1, hash: hash });
-    const res  = await fetch('add_to_cart.php', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body
-    });
-    const data = await res.json().catch(() => ({}));
-    if (res.ok && data && (data.status === 'ok' || data.success === true)) {
-      updateCartSummary(); // 🧠 kritik: anında mini sepeti güncelle
-    } else {
-      showToast(data.message || 'İşlem başarısız.');
-    }
-  } catch (e) {
-    showToast('Bağlantı hatası.');
-  }
-}
-
-// Mini sepeti güncelle
-async function updateCartSummary() {
-  try {
-    const res = await fetch(`get_cart_summary.php?hash=<?=urlencode($hash)?>`);
-    const data = await res.json();
-    if (data.status === 'ok') {
-      const countEl = document.getElementById('cartCount');
-      const totalEl = document.getElementById('cartTotal');
-      const popupTotalEl = document.getElementById('popupTotal');
-      const itemsWrap = document.getElementById('cartItems');
-
-      if (countEl) countEl.textContent = data.count || 0;
-      if (totalEl) totalEl.textContent = data.total || '0.00';
-      if (popupTotalEl) popupTotalEl.textContent = (data.total || '0.00') + ' ₺';
-
-      if (itemsWrap) {
-        itemsWrap.innerHTML = '';
-        const items = data.items || [];
-        if (!items.length) {
-          itemsWrap.innerHTML = `<p class="text-muted small mb-0"><?= htmlspecialchars($tx['emptyCart']) ?></p>`;
-        } else {
-          items.forEach(item => {
-            const row = document.createElement('div');
-            row.className = 'cart-item-row';
-row.innerHTML = `
-  <div class="cart-item-name">${item.name}<br>
-    <small class="text-muted">${item.option_name}</small>
-  </div>
-  <div class="cart-item-qty">
-    ${item.qty} × ${item.price} ₺
-    <span class="cart-item-remove" data-key="${item.key}">&times;</span>
-  </div>
-`;
-
-
-            itemsWrap.appendChild(row);
-          });
-        }
-      }
-    }
-  } catch (err) {
-    console.error('Sepet güncellenemedi', err);
-  }
-}
-
-
-
-
-  // Adet +/- butonları
-  addEventListener('click', function(e) {
-    const minus = e.target.closest('.qty-minus');
-    const plus  = e.target.closest('.qty-plus');
-    if (!minus && !plus) return;
-    e.preventDefault();
-    const group = e.target.closest('.qty-group');
-    const input = group ? group.querySelector('.qty-input') : null;
-    if (!input || input.disabled) return;
-    let v = parseInt(input.value, 10); if (isNaN(v)) v = 1;
-    if (minus) v = Math.max(1, v - 1);
-    if (plus)  v = v + 1;
-    input.value = v;
-  });
-
-
-
-
-  
-
-// Sayfa açılışında mini sepeti getir
-updateCartSummary();
-
-// ScrollSpy aktif merkezleme
-const scrollSpy = new bootstrap.ScrollSpy(document.body, { target: '#subcategoryNav', offset: 100 });
-document.addEventListener('activate.bs.scrollspy', function () {
-  const active = document.querySelector('#subcategoryNav .active');
-  if (active) active.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-});
-
-</script>
 
 <!-- Floating Cart -->
 <div id="floatingCart" class="floating-cart">
  <button id="cartToggle" class="btn cart-btn">
+    
   🛒 <span id="cartCount">0</span> • <span id="cartTotal">0.00</span> ₺
  </button>
  <div id="cartPopup" class="cart-popup">
@@ -640,158 +531,229 @@ document.addEventListener('activate.bs.scrollspy', function () {
  </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-// ✅ Sepete ekle
-async function addToCart(itemId, optionId, hash, quantity){
-  const body=new URLSearchParams({item_id:itemId,option_id:optionId,quantity,hash});
-  const res=await fetch('add_to_cart.php',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body});
-  if(res.ok){updateCartSummary();}
+/* ==== BASİT TOAST ==== */
+function showToast(message, ok=true) {
+  const container = document.getElementById('toastContainer');
+  const id = 't' + Math.random().toString(36).slice(2);
+  const cls = ok ? 'text-bg-success' : 'text-bg-danger';
+  container.insertAdjacentHTML(
+    'beforeend',
+    `<div id="${id}" class="toast align-items-center ${cls} border-0" role="alert">
+      <div class="d-flex">
+        <div class="toast-body">${message}</div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+      </div>
+    </div>`
+  );
+  const el = document.getElementById(id);
+  const t = new bootstrap.Toast(el, { delay: 1800 });
+  t.show();
+  el.addEventListener('hidden.bs.toast', () => el.remove());
 }
 
-// ✅ Sepetten sil
-async function removeFromCart(key) {
+/* ==== SEPET ÖZETİ ==== */
+async function updateCartSummary() {
   try {
+    const res = await fetch(`get_cart_summary.php?hash=<?=urlencode($hash)?>`, { cache: 'no-store' });
+    const data = await res.json();
+    if (data.status !== 'ok') return;
+
+    const countEl = document.getElementById('cartCount');
+    const totalEl = document.getElementById('cartTotal');
+    const popupTotalEl = document.getElementById('popupTotal');
+    const itemsWrap = document.getElementById('cartItems');
+
+    if (countEl) countEl.textContent = data.count ?? 0;
+    if (totalEl) totalEl.textContent = data.total ?? '0.00';
+    if (popupTotalEl) popupTotalEl.textContent = (data.total ?? '0.00') + ' ₺';
+
+    if (itemsWrap) {
+      itemsWrap.innerHTML = '';
+      const items = Array.isArray(data.items) ? data.items : [];
+      if (!items.length) {
+        itemsWrap.innerHTML = `<p class="text-muted small mb-0"><?= htmlspecialchars($tx['emptyCart']) ?></p>`;
+      } else {
+        items.forEach((it) => {
+          let key = it.key ?? it.CartItemID ?? it.rowid ?? it.id ?? (it.item_id && it.option_id ? `${it.item_id}:${it.option_id}` : null);
+          const row = document.createElement('div');
+          row.className = 'cart-item-row';
+          row.innerHTML = `
+            <div class="cart-item-name">${it.name ?? ''}<br>
+              <small class="text-muted">${it.option_name ?? ''}</small>
+            </div>
+            <div class="cart-item-qty">${it.qty ?? 1} × ${it.price ?? '0.00'} ₺</div>
+            <button type="button" class="cart-item-remove btn btn-link p-0 m-0 border-0 text-danger fw-bold fs-3" data-key="${key}" title="Kaldır">×</button>
+          `;
+          itemsWrap.appendChild(row);
+        });
+      }
+    }
+  } catch (err) {
+    console.error('Sepet güncellenemedi', err);
+  }
+}
+
+/* ==== SEPETE EKLE ==== */
+async function addToCart(itemId, optionId, hash, quantity = 1) {
+  try {
+    const res = await fetch('add_to_cart.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ item_id: itemId, option_id: optionId, quantity, hash })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && (data.status === 'ok' || data.success === true)) {
+      updateCartSummary();
+      showToast('Sepete eklendi!');
+    } else {
+      showToast(data.message || 'İşlem başarısız.', false);
+    }
+  } catch (e) {
+    showToast('Bağlantı hatası.', false);
+  }
+}
+
+/* ==== SEPETTEN SİL ==== */
+async function removeFromCart(key, clickedEl) {
+  try {
+    const row = clickedEl?.closest('.cart-item-row');
+    if (row) row.remove();
+
     const res = await fetch('remove_from_cart.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        key: key,
-        hash: '<?=urlencode($hash)?>'
-      })
+      body: new URLSearchParams({ key, hash: '<?=urlencode($hash)?>' })
     });
-    const data = await res.json();
+
+    const text = await res.text();
+    let data = null;
+    try { data = JSON.parse(text); } catch (e) {
+      console.error('JSON parse edilemedi, yanıt:', text);
+      showToast('Silme yanıtı geçersiz. (JSON değil)', false);
+      updateCartSummary();
+      return;
+    }
+
     if (data.status === 'ok') {
+      showToast('Ürün kaldırıldı');
       updateCartSummary();
     } else {
-      console.error('Silme hatası:', data.message);
+      console.error('Silme hatası:', data);
+      showToast(data.message || 'Silme başarısız.', false);
+      updateCartSummary();
     }
   } catch (err) {
     console.error('İstek hatası:', err);
+    showToast('Silme isteği başarısız.', false);
+    updateCartSummary();
   }
 }
 
-
-
-
-
-// ✅ Mini sepeti güncelle
-async function updateCartSummary(){
-  const res=await fetch('get_cart_summary.php?hash=<?=$hash?>');
-  const data=await res.json();
-  const cC=document.getElementById('cartCount'), cT=document.getElementById('cartTotal'),
-        pT=document.getElementById('popupTotal'), cI=document.getElementById('cartItems');
-  if(data.status==='ok'){
-    cC.textContent=data.count; cT.textContent=data.total; pT.textContent=data.total+' ₺';
-    cI.innerHTML='';
-    if(!data.items.length){cI.innerHTML='<p class="text-muted small mb-0"><?=$tx['emptyCart']?></p>';return;}
-    data.items.forEach(it=>{
-      const row=document.createElement('div');
-      row.className='cart-item-row';
-      row.innerHTML=`
-        <div class="cart-item-name">${it.name}<br><small class="text-muted">${it.option_name}</small></div>
-        <div class="cart-item-qty">${it.qty} × ${it.price} ₺</div>
-        <span class="cart-item-remove" data-key="${it.key}">&times;</span>
-      `;
-      cI.appendChild(row);
-    });
-  }
-}
-
-// ✅ Tüm olayları tek DOMContentLoaded bloğunda birleştirilmiş versiyon
+/* ==== DOM OLAYLARI ==== */
 document.addEventListener('DOMContentLoaded', () => {
+  updateCartSummary();
 
-  /* 🛒 1. Ürün ekleme */
-  document.body.addEventListener('click', e => {
-    const add = e.target.closest('.add-to-cart');
-    if (add) {
-      addToCart(add.dataset.itemId, add.dataset.optionId, add.dataset.hash, 1);
-      return;
-    }
-  });
-
-  /* 🧠 2. Dinamik olay yakalayıcı (örneğin remove veya sonradan eklenen öğeler) */
-  document.body.addEventListener('click', e => {
-    const del = e.target.closest('.cart-item-remove');
-    if (del) {
-      removeFromCart(del.dataset.key);
-      return;
-    }
-
-    // Adet +/- butonları
+  // Tek click delegasyonu
+  document.body.addEventListener('click', (e) => {
+    const add   = e.target.closest('.add-to-cart');
+    const del   = e.target.closest('.cart-item-remove');
     const minus = e.target.closest('.qty-minus');
     const plus  = e.target.closest('.qty-plus');
+
+if (add) {
+  // Kart içindeki adet input'unu bul
+  const card = add.closest('.card');
+  const qtyInput = card ? card.querySelector('.qty-input') : null;
+  const qty = qtyInput ? parseInt(qtyInput.value, 10) || 1 : 1;
+
+  addToCart(add.dataset.itemId, add.dataset.optionId, add.dataset.hash, qty);
+  return;
+}
+
+    if (del) {
+      const key = del.dataset.key;
+      if (!key) {
+        console.warn('cart-item-remove tıklandı ama data-key yok.', del);
+        showToast('Silme anahtarı yok.', false);
+        return;
+      }
+      removeFromCart(key, del);
+      return;
+    }
+
     if (minus || plus) {
       e.preventDefault();
       const group = e.target.closest('.qty-group');
       const input = group ? group.querySelector('.qty-input') : null;
       if (!input || input.disabled) return;
-
       let v = parseInt(input.value, 10);
       if (isNaN(v)) v = 1;
       if (minus) v = Math.max(1, v - 1);
-      if (plus) v = v + 1;
+      if (plus)  v = v + 1;
       input.value = v;
     }
   });
 
-  /* 🧾 3. Checkout (Siparişi Gönder) */
-  const checkoutBtn = document.getElementById('cartCheckoutBtn');
-  const cartPopup   = document.getElementById('cartPopup');
+  // Floating cart aç/kapa
+  const cartToggle = document.getElementById('cartToggle');
+  const cartPopup  = document.getElementById('cartPopup');
+  if (cartToggle && cartPopup) {
+    cartToggle.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const isOpen = cartPopup.style.display === 'block';
+      cartPopup.style.display = isOpen ? 'none' : 'block';
+    });
 
+    cartPopup.addEventListener('click', (e) => {
+      if (e.target.closest('.cart-item-remove')) return;
+      e.stopPropagation();
+    });
+
+    document.addEventListener('click', (e) => {
+      const inside = e.target.closest('.floating-cart');
+      if (e.target.closest('.cart-item-remove')) return;
+      if (!inside) cartPopup.style.display = 'none';
+    });
+  }
+
+  /* 🧾 SİPARİŞİ GÖNDER */
+  const checkoutBtn = document.getElementById('cartCheckoutBtn');
   if (checkoutBtn) {
     checkoutBtn.addEventListener('click', async () => {
-      if (!confirm(<?= json_encode($tx['checkout'] . '?') ?>)) return;
-
+      console.log('🛒 Siparişi Gönder tıklandı');
       const note = document.getElementById('orderNote')?.value || '';
       try {
         const res = await fetch('submit_order.php', {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: new URLSearchParams({
-            hash: '<?=urlencode($hash)?>',
-            note: note
-          })
+          body: new URLSearchParams({ hash: '<?=urlencode($hash)?>', note })
         });
+        const text = await res.text();
+        console.log('📦 Sunucu yanıtı:', text);
 
-        const data = await res.json().catch(() => ({}));
+        let data;
+        try { data = JSON.parse(text); } 
+        catch { showToast('Geçersiz yanıt (JSON değil)', false); return; }
+
         if (data.status === 'ok') {
-          alert('Siparişiniz alındı!');
+          showToast('✅ Siparişiniz alındı!');
           updateCartSummary();
           if (cartPopup) cartPopup.style.display = 'none';
         } else {
-          alert(data.message || 'Hata oluştu.');
+          showToast(data.message || 'Hata oluştu.', false);
         }
       } catch (err) {
-        console.error(err);
-        alert('Bağlantı hatası.');
+        console.error('Bağlantı hatası:', err);
+        showToast('Bağlantı hatası', false);
       }
     });
   }
-
-  /* 💬 4. Floating cart aç/kapa */
-  const cartToggle = document.getElementById('cartToggle');
-  if (cartToggle && cartPopup) {
-    ['click', 'touchend'].forEach(evt => {
-      cartToggle.addEventListener(evt, e => {
-        e.stopPropagation();
-        cartPopup.style.display = (cartPopup.style.display === 'block') ? 'none' : 'block';
-      });
-    });
-
-    // dışarı tıklayınca kapanma
-    document.addEventListener('click', e => {
-      if (!e.target.closest('.floating-cart')) {
-        cartPopup.style.display = 'none';
-      }
-    });
-  }
-
-  /* 💰 5. İlk yüklemede sepet özeti getir */
-  updateCartSummary();
 });
-
-
 </script>
+
+
+
 </body>
 </html>
