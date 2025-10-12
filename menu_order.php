@@ -199,23 +199,7 @@ if (!empty($_SESSION['cart'][$hash])) {
 
 <div class="container py-4">
 
-  <!-- 🔗 Üstte Menü, Sepet ve Siparişlerim butonları -->
-  <div class="d-flex justify-content-end align-items-center gap-2 mb-4 flex-wrap">
-    <a href="menu_order.php?hash=<?= urlencode($hash) ?>&theme=<?= urlencode($theme) ?>&lang=<?= urlencode($lang) ?>"
-       class="btn btn-outline-secondary btn-sm">
-       🍽️ Ana Menü
-    </a>
 
-    <a href="menu_cart.php?hash=<?= urlencode($hash) ?>&theme=<?= urlencode($theme) ?>&lang=<?= urlencode($lang) ?>"
-       class="btn btn-outline-success btn-sm">
-       🛒 Sepet
-    </a>
-
-    <a href="orders.php?hash=<?= urlencode($hash) ?>&theme=<?= urlencode($theme) ?>&lang=<?= urlencode($lang) ?>"
-       class="btn btn-outline-primary btn-sm">
-       📋 Siparişlerim
-    </a>
-  </div>
 
 
   <!-- 🏷️ ANA SAYFA / KATEGORİLER -->
@@ -355,13 +339,29 @@ if (!empty($_SESSION['cart'][$hash])) {
       <div class="cart-bar-left">
         🛒 <strong>Sepet Toplamı:</strong> 
         <span id="cartTotalBar">₺<?= number_format($total ?? 0, 2, ',', '.') ?></span>
-      </div>
-<a href="menu_cart.php?hash=<?= urlencode($hash) ?>&theme=<?= urlencode($theme) ?>&lang=<?= urlencode($lang) ?>"
-   class="btn btn-light btn-sm fw-semibold">
-  Sepeti Gör ve Onayla
-</a>
+  
+<!-- 🔻 Yeni alt sabit sepet bar -->
+<div class="vov-cart-bar">
+  <div class="cart-bar-inner container d-flex justify-content-center align-items-center gap-2 flex-wrap">
+    <a href="menu_order.php?hash=<?= urlencode($hash) ?>&theme=<?= urlencode($theme) ?>&lang=<?= urlencode($lang) ?>"
+       class="btn btn-outline-secondary btn-sm">
+       🍽️ Ana Menü
+    </a>
 
-    </div>
+    <a href="menu_cart.php?hash=<?= urlencode($hash) ?>&theme=<?= urlencode($theme) ?>&lang=<?= urlencode($lang) ?>"
+       class="btn btn-outline-success btn-sm" id="cartButtonBar">
+       🛒 Sepet (₺<?= number_format($total ?? 0, 2, ',', '.') ?>)
+    </a>
+
+    <a href="orders.php?hash=<?= urlencode($hash) ?>&theme=<?= urlencode($theme) ?>&lang=<?= urlencode($lang) ?>"
+       class="btn btn-outline-primary btn-sm">
+       📋 Siparişlerim
+    </a>
+  </div>
+</div>
+
+
+
   </div>
 <?php endif; ?>
 
@@ -407,11 +407,12 @@ function vovUpdateCartDisplay(totalTry) {
     btn.textContent = `🛒 <?= htmlspecialchars($tx['cart']) ?> (₺${formatted})`;
   }
 
-  // 🔹 alt bardaki toplam alanı da güncelle
-  const barTotal = document.getElementById('cartTotalBar');
-  if (barTotal) {
-    barTotal.textContent = `₺${formatted}`;
-  }
+// 🔹 Sepet butonundaki toplamı güncelle
+const cartBtn = document.getElementById('cartButtonBar');
+if (cartBtn) {
+  cartBtn.innerHTML = `🛒 Sepet (₺${formatted})`;
+}
+
 }
 
 

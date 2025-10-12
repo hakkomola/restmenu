@@ -316,3 +316,82 @@ body[data-theme="dark"] .subcategory-menu a.btn.active {
   color: inherit !important;
   border-color: inherit !important;
 }
+
+
+/* --- Alttaki Menü / Sepet / Siparişlerim butonlarını Bootstrap rengine döndür --- */
+.vov-cart-bar .btn-outline-secondary,
+.vov-cart-bar .btn-outline-success,
+.vov-cart-bar .btn-outline-primary {
+  background: transparent !important;
+  border-width: 1px !important;
+  border-style: solid !important;
+}
+
+.vov-cart-bar .btn-outline-secondary {
+  border-color: #6c757d !important;
+  color: #6c757d !important;
+}
+.vov-cart-bar .btn-outline-secondary:hover {
+  background-color: #6c757d !important;
+  color: #fff !important;
+}
+
+.vov-cart-bar .btn-outline-success {
+  border-color: #198754 !important;
+  color: #198754 !important;
+}
+.vov-cart-bar .btn-outline-success:hover {
+  background-color: #198754 !important;
+  color: #fff !important;
+}
+
+.vov-cart-bar .btn-outline-primary {
+  border-color: #0d6efd !important;
+  color: #0d6efd !important;
+}
+.vov-cart-bar .btn-outline-primary:hover {
+  background-color: #0d6efd !important;
+  color: #fff !important;
+}
+
+
+
+/* 🔹 Alt sabit bar: butonlar her ekranda tek satırda yan yana */
+.vov-cart-bar .cart-bar-inner {
+  display: flex !important;
+  flex-direction: row !important;
+  justify-content: center !important;
+  align-items: center !important;
+  gap: 8px !important;
+  flex-wrap: nowrap !important;
+  overflow-x: auto !important;
+  white-space: nowrap !important;
+  padding: 8px 10px;
+}
+
+/* 🔹 Her buton kendi genişliğinde dursun, taşmasın */
+.vov-cart-bar .btn {
+  flex: 0 0 auto !important;
+  white-space: nowrap !important;
+  border-radius: 6px !important; /* veya 6px – istediğin kadar azaltabilirsin */
+}
+
+/* 🔹 Kaydırma çubuğunu gizle ama parmakla kaydırılabilir kalsın */
+.vov-cart-bar .cart-bar-inner::-webkit-scrollbar {
+  display: none;
+}
+
+
+/* 🔸 Mobilde alt bar butonlarını küçült */
+@media (max-width: 576px) {
+  .vov-cart-bar .btn {
+    font-size: 0.8rem !important;     /* Yazı boyutu küçülür */
+    padding: 4px 8px !important;      /* İç boşluk azalır */
+    border-radius: 6px !important;    /* Hafif köşe */
+  }
+
+  .vov-cart-bar .cart-bar-inner {
+    gap: 6px !important;              /* Butonlar arası boşluk azalsın */
+    padding: 6px 8px !important;
+  }
+}

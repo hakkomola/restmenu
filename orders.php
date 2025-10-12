@@ -45,6 +45,7 @@ try {
         LEFT JOIN OrderStatusTranslations ost
                ON ost.StatusID = o.StatusID AND ost.LangCode = :lang
         WHERE o.RestaurantID = :rid AND o.OrderCode = :code
+        AND DATE(o.CreatedAt) = CURDATE()
         ORDER BY o.CreatedAt DESC, o.OrderID DESC
     ");
     $stmt->execute([':lang' => $lang, ':rid' => $rid, ':code' => $code]);
@@ -111,6 +112,8 @@ try {
         </div>
 
         <div class="card-body p-3">
+
+
           <?php if (empty($items)): ?>
             <div class="text-muted small">Bu siparişin kalemleri bulunamadı.</div>
           <?php else: ?>
@@ -131,9 +134,16 @@ try {
                 </div>
               </div>
             <?php endforeach; ?>
-            <div class="text-end mt-3">
-              <strong>Toplam: ₺<?= number_format((float)$order['TotalPrice'], 2, ',', '.') ?></strong>
-            </div>
+            <div class="text mt-3 d-flex justify-content-between align-items-start">
+  <?php if (!empty($order['Note'])): ?>
+    <div class="alert alert-warning py-2 px-3 mb-0 flex-grow-1 me-3" style="max-width:70%;">
+      <strong>📝 Not:</strong> <?= nl2br(htmlspecialchars($order['Note'])) ?>
+    </div>
+  <?php endif; ?>
+  <div class="text-end flex-shrink-0">
+    <strong>Toplam: ₺<?= number_format((float)$order['TotalPrice'], 2, ',', '.') ?></strong>
+  </div>
+</div>
           <?php endif; ?>
         </div>
       </div>
