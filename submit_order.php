@@ -63,14 +63,14 @@ try {
         VALUES (:oid, :opt, :qty, :price, 1, :total)
     ");
 
-    foreach ($cart as $item) {
-        $qty = isset($item['quantity']) && (int)$item['quantity'] > 0 ? (int)$item['quantity'] : 1;
+    foreach ($cart as $optionId => $item) {
+        $qty = isset($item['qty']) && (int)$item['qty'] > 0 ? (int)$item['qty'] : 1;
         $price = isset($item['price']) ? (float)$item['price'] : 0.00;
         $lineTotal = $qty * $price;
 
         $stmtItem->execute([
             ':oid'   => $orderId,
-            ':opt'   => $item['option_id'] ?? null,
+            ':opt'   => $optionId, // ✅ OptionID artık buradan geliyor
             ':qty'   => $qty,
             ':price' => $price,
             ':total' => $lineTotal

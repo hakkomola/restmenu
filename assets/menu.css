@@ -1,0 +1,318 @@
+/* ===========================
+   VOV MENU STYLE (menu_order + menu_cart)
+   =========================== */
+
+body.menu-body {
+  font-family: "Ibarra Real Nova", sans-serif;
+  scroll-behavior: smooth;
+  background-color: var(--menu-bg);
+  color: var(--menu-text);
+  padding-bottom: 100px;
+}
+
+/* renk değişkenleri */
+:root {
+  --menu-bg: #f8f9fa;
+  --menu-text: #333;
+  --menu-card-bg: #fff;
+  --menu-card-shadow: rgba(0, 0, 0, 0.08);
+  --menu-accent: #007bff;
+  --menu-cart-bg: #198754;
+}
+
+/* DARK THEME değişkenleri */
+body[data-theme="dark"] {
+  --menu-bg: #121212;
+  --menu-text: #f1f1f1;
+  --menu-card-bg: #1e1e1e;
+  --menu-card-shadow: rgba(255, 255, 255, 0.06);
+  --menu-accent: #ff9800;
+  --menu-cart-bg: #ff9800;
+}
+
+/* Üst bar düzeni */
+.topbar {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  position: relative;
+  z-index: 1010;
+}
+
+/* Dil seçim alanı */
+.lang-switch {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.lang-switch a {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-decoration: none;
+  background: rgba(255,255,255,0.08);
+  color: #ccc;
+  border: 1px solid rgba(255,255,255,0.15);
+  transition: all 0.2s ease-in-out;
+}
+.lang-switch a:hover { background: rgba(255,255,255,0.15); }
+.lang-switch a.active {
+  background: #ff9800;
+  color: #000;
+  border-color: #ff9800;
+}
+.lang-switch img {
+  width: 20px;
+  height: 14px;
+  border-radius: 3px;
+  object-fit: cover;
+  box-shadow: 0 0 2px rgba(0,0,0,0.3);
+}
+
+body[data-theme="light"] .lang-switch a {
+  background: #fff;
+  color: #333;
+  border-color: #ccc;
+}
+body[data-theme="light"] .lang-switch a.active {
+  background: #007bff;
+  color: #fff;
+  border-color: #007bff;
+}
+
+/* Sepet butonunun üst barla çakışmasını önle */
+.vov-cart-button {
+  position: fixed;
+  top: 15px;
+  right: 15px;
+  z-index: 2000;
+}
+
+/* Küçük ekranlarda bayraklar alt alta taşsın */
+@media (max-width: 576px) {
+  .topbar { flex-wrap: wrap; justify-content: flex-start; }
+  .lang-switch { gap: 6px; flex-wrap: wrap; }
+}
+
+/* sayfa başlıkları */
+.page-header { text-align:center; margin-bottom:25px; padding-top:10px; }
+.page-header h1 { font-size:clamp(22px,5vw,34px); font-weight:700; margin-bottom:5px; }
+.page-header h3 { font-size:clamp(18px,4vw,26px); opacity:.85; font-weight:500; }
+
+/* kartlar */
+.card {
+  border:none; border-radius:12px; overflow:hidden;
+  box-shadow:0 2px 8px var(--menu-card-shadow);
+  background:var(--menu-card-bg);
+  transition:all .25s ease-in-out;
+}
+.card:hover { box-shadow:0 6px 14px rgba(0,0,0,0.15); }
+body[data-theme="dark"] .card:hover {
+  background-color:#252525;
+  box-shadow:0 6px 14px rgba(255,255,255,0.1);
+}
+.card-title { color:var(--menu-text); font-weight:600; }
+.card-text { color: var(--menu-text); opacity: 0.9; }
+
+/* fiyat */
+.price { font-weight:700; font-size:1rem; color:var(--menu-accent); }
+
+/* görseller */
+.category-img, .menu-img { height:220px; object-fit:cover; width:100%; }
+body[data-theme="dark"] .menu-img { filter:brightness(0.9); }
+
+/* alt kategori menüsü */
+.subcategory-menu {
+  position:sticky; top:0; z-index:999;
+  background-color:rgba(255,255,255,0.95);
+  padding:8px 0; border-bottom:1px solid #ddd;
+  overflow-x:auto; white-space:nowrap; scrollbar-width:none;
+}
+body[data-theme="dark"] .subcategory-menu {
+  background-color:rgba(18,18,18,0.95); border-color:#333;
+}
+.subcategory-menu::-webkit-scrollbar { display:none; }
+.subcategory-menu a {
+  display:inline-block; margin:0 4px; border-radius:50px;
+  padding:6px 14px; font-size:.9rem;
+  border:1px solid #ccc; color:#333; background:#f8f9fa;
+}
+body[data-theme="dark"] .subcategory-menu a {
+  border-color:#555; color:#ddd; background:#1e1e1e;
+}
+.subcategory-menu a.active {
+  background-color:var(--menu-accent); border-color:var(--menu-accent); color:#fff;
+}
+body[data-theme="dark"] .subcategory-menu a.active { color:#000; }
+
+/* adet seçici */
+.qty-group { display:flex; align-items:center; gap:6px; }
+.qty-group .btn { padding:.25rem .5rem; }
+.qty-input { width:56px; text-align:center; }
+
+/* sabit alt bar */
+.vov-cart-bar {
+  position: fixed;
+  bottom: 0; left: 0; width: 100%;
+  background: linear-gradient(180deg, #f7b733 0%, #fc4a1a 100%);
+  color: #fff;
+  box-shadow: 0 -3px 8px rgba(0, 0, 0, 0.2);
+  z-index: 2000;
+  padding: 10px 0;
+  transition: all 0.3s ease-in-out;
+}
+.cart-bar-inner { max-width: 900px; margin: 0 auto; padding: 0 12px; }
+.cart-bar-left { font-size: 0.95rem; }
+.vov-cart-bar a.btn {
+  background-color: rgba(255,255,255,0.9);
+  color: #222;
+  border: none;
+  border-radius: 30px;
+  padding: 6px 16px;
+  font-weight: 600;
+  transition: all 0.25s ease;
+}
+.vov-cart-bar a.btn:hover {
+  background-color: #fff; color: #000;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+}
+body[data-theme="dark"] .vov-cart-bar {
+  background: linear-gradient(180deg, #333 0%, #222 100%);
+  color: #ff9800;
+}
+body[data-theme="dark"] .vov-cart-bar a.btn {
+  background-color: #ff9800;
+  color: #000;
+}
+body[data-theme="dark"] .vov-cart-bar a.btn:hover {
+  background-color: #ffc74d;
+  color: #000;
+}
+
+/* mobil görünüm */
+@media (max-width: 576px) {
+  .cart-bar-inner { flex-direction: column; gap: 6px; text-align: center; }
+  .vov-cart-bar { padding: 12px 0; }
+}
+
+/* ===========================
+   SEPET SAYFASI (menu_cart.php)
+   =========================== */
+
+.cart-card, .card {
+  border:none;
+  border-radius:12px;
+  background: var(--menu-card-bg);
+  color: var(--menu-text);
+  box-shadow: 0 2px 8px var(--menu-card-shadow);
+  transition: all .25s ease-in-out;
+}
+body[data-theme="dark"] .cart-card:hover {
+  background-color:#252525;
+  box-shadow:0 6px 14px rgba(255,255,255,0.1);
+}
+
+.cart-item-remove {
+  cursor:pointer;
+  color:#dc3545;
+  font-weight:bold;
+  font-size:1.5rem;
+  user-select:none;
+  transition:transform 0.15s ease;
+}
+.cart-item-remove:hover { transform:scale(1.2); }
+
+.cart-footer {
+  position:sticky;
+  bottom:0;
+  background:var(--menu-card-bg);
+  color:var(--menu-text);
+  padding:15px;
+  box-shadow:0 -2px 5px rgba(0,0,0,0.1);
+  border-radius:12px 12px 0 0;
+}
+body[data-theme="dark"] .cart-footer {
+  background:#1a1a1a;
+  color:#eee;
+  box-shadow:0 -2px 5px rgba(255,255,255,0.05);
+  border-top:1px solid #333;
+}
+
+/* DARK CONTRAST BOOST */
+body[data-theme="dark"] .cart-card .fw-semibold,
+body[data-theme="dark"] .cart-card .text-muted,
+body[data-theme="dark"] .cart-card small {
+  color: #ddd !important;
+  opacity: 1;
+}
+body[data-theme="dark"] .cart-card .price { color: #ffb84d !important; }
+body[data-theme="dark"] .btn-outline-secondary {
+  color: #ccc; border-color: #666;
+}
+body[data-theme="dark"] .btn-outline-secondary:hover {
+  background: #444; color: #fff;
+}
+body[data-theme="dark"] .cart-item-remove { color: #ff7070; }
+body[data-theme="dark"] h4.fw-bold { color: #ffb84d; }
+body[data-theme="dark"] .btn-outline-secondary:hover {
+  color: #000; background-color: #ffb84d; border-color: #ffb84d;
+}
+
+/* Card temel renk override (Bootstrap bastırması için) */
+body[data-theme="dark"] .card,
+body[data-theme="dark"] .cart-card {
+  color: #f1f1f1 !important;
+  background: #1e1e1e !important;
+  border-color: #333 !important;
+}
+body[data-theme="dark"] .text-muted { color: #ccc !important; }
+
+.cart-thumb {
+  width: 70px;
+  height: 70px;
+  border-radius: 10px;
+  object-fit: cover;
+  box-shadow: 0 0 4px rgba(0,0,0,0.15);
+}
+
+
+/* ===========================
+   SUBCATEGORY ACTIVE RENGİ (override)
+   =========================== */
+#subcategoryNav .btn.active,
+#subcategoryNav a.btn.active,
+.subcategory-menu .btn.active,
+.subcategory-menu a.btn.active {
+  background-color: #ffc107 !important;   /* sarı */
+  border-color: #ffc107 !important;
+  color: #212529 !important;
+  font-weight: 600;
+}
+
+/* dark theme */
+body[data-theme="dark"] #subcategoryNav .btn.active,
+body[data-theme="dark"] #subcategoryNav a.btn.active,
+body[data-theme="dark"] .subcategory-menu .btn.active,
+body[data-theme="dark"] .subcategory-menu a.btn.active {
+  background-color: #ffb84d !important;   /* kehribar */
+  border-color: #ffb84d !important;
+  color: #000 !important;
+  font-weight: 600;
+}
+
+/* hover’da rengi bozmasın */
+#subcategoryNav .btn.active:hover,
+#subcategoryNav a.btn.active:hover,
+.subcategory-menu .btn.active:hover,
+.subcategory-menu a.btn.active:hover {
+  background-color: inherit !important;
+  color: inherit !important;
+  border-color: inherit !important;
+}
