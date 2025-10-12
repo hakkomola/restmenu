@@ -41,9 +41,9 @@ try {
             $currentDefaultLang = $r['LangCode'];
         }
     }
-} catch (Exception $e) { /* yoksay */ }
+} catch (Exception $e) {}
 
-// Görsel silme işlemleri
+/* --- Görsel Silme --- */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['delete_main'])) {
         if (!empty($restaurant['MainImage'])) {
@@ -66,7 +66,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Güncelleme (ana form)
+/* --- Güncelleme --- */
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['delete_main']) && !isset($_POST['delete_background'])) {
     $name       = trim($_POST['name'] ?? '');
     $nameHTML   = trim($_POST['name_html'] ?? '');
@@ -75,6 +75,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['delete_main']) && !i
     $address    = trim($_POST['address'] ?? '');
     $mapUrl     = trim($_POST['map_url'] ?? '');
     $password   = $_POST['password'] ?? '';
+    $themeMode  = $_POST['theme_mode'] ?? 'auto';
 
     // Dil seçimleri
     $postedLangs   = isset($_POST['langs']) && is_array($_POST['langs']) ? $_POST['langs'] : [];
@@ -93,7 +94,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['delete_main']) && !i
         $error = 'Varsayılan dil seçilmeli ve seçili dillerden biri olmalı.';
     }
 
-    // Görsel işlemleri (hata yoksa devam)
+    // Görseller
     $bgToSave   = $restaurant['BackgroundImage'];
     $mainToSave = $restaurant['MainImage'];
 
@@ -101,6 +102,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['delete_main']) && !i
         $uploadsDir = __DIR__ . '/../uploads/';
         if (!is_dir($uploadsDir)) mkdir($uploadsDir, 0777, true);
 
+        // Ana görsel
         if (!empty($_FILES['main_image']['name'])) {
             $safeName = preg_replace('/[^A-Za-z0-9_\-\.]/', '_', basename($_FILES['main_image']['name']));
             $fileName = 'main_' . time() . '_' . $safeName;
@@ -116,6 +118,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['delete_main']) && !i
             }
         }
 
+        // Arka plan
         if ($error === '' && !empty($_FILES['bg_image']['name'])) {
             $safeName = preg_replace('/[^A-Za-z0-9_\-\.]/', '_', basename($_FILES['bg_image']['name']));
             $fileName = 'bg_' . time() . '_' . $safeName;
@@ -136,31 +139,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['delete_main']) && !i
         try {
             $pdo->beginTransaction();
 
-            // Restaurants güncelle (DefaultLanguage dahil)
-            $sql = "UPDATE Restaurants SET Name=?, NameHTML=?, Email=?, Phone=?, Address=?, MapUrl=?, MainImage=?, BackgroundImage=?, DefaultLanguage=?";
-            $params = [$name, $nameHTML, $email, $phone, $address, $mapUrl, $mainToSave, $bgToSave, $postedDefault];
+            // 🔹 Restaurants güncelle (ThemeMode dahil)
+            $sql = "UPDATE Restaurants 
+                    SET Name=?, NameHTML=?, Email=?, Phone=?, Address=?, MapUrl=?, 
+                        MainImage=?, BackgroundImage=?, DefaultLanguage=?, ThemeMode=?";
+            $params = [$name, $nameHTML, $email, $phone, $address, $mapUrl,
+                       $mainToSave, $bgToSave, $postedDefault, $themeMode];
 
             if (!empty($password)) {
                 $sql .= ", PasswordHash = ?";
                 $params[] = password_hash($password, PASSWORD_DEFAULT);
             }
+
             $sql .= " WHERE RestaurantID = ?";
             $params[] = $restaurantId;
-
             $pdo->prepare($sql)->execute($params);
 
-            // RestaurantLanguages güncelle
-            // 1) Seçili olmayanları sil
+            // 🔹 RestaurantLanguages güncelle
             if (!empty($postedLangs)) {
                 $placeholders = implode(',', array_fill(0, count($postedLangs), '?'));
-                $del = $pdo->prepare("DELETE FROM RestaurantLanguages WHERE RestaurantID=? AND LangCode NOT IN ($placeholders)");
-                $del->execute(array_merge([$restaurantId], $postedLangs));
-            } else {
-                // Teorik olarak buraya girmeyecek (validation var), ama güvenlik için:
-                $pdo->prepare("DELETE FROM RestaurantLanguages WHERE RestaurantID=?")->execute([$restaurantId]);
+                $pdo->prepare("DELETE FROM RestaurantLanguages WHERE RestaurantID=? AND LangCode NOT IN ($placeholders)")
+                    ->execute(array_merge([$restaurantId], $postedLangs));
             }
 
-            // 2) Seçili olanları ekle/güncelle
             $ins = $pdo->prepare("
                 INSERT INTO RestaurantLanguages (RestaurantID, LangCode, IsDefault)
                 VALUES (?, ?, ?)
@@ -171,7 +172,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['delete_main']) && !i
             }
 
             $pdo->commit();
-
             $_SESSION['restaurant_name'] = $name;
             header('Location: ../restaurants/dashboard.php');
             exit;
@@ -184,25 +184,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['delete_main']) && !i
 
 if (isset($_GET['success'])) $message = 'İşlem başarıyla gerçekleştirildi.';
 
-// 🔹 HEADER ve NAVBAR dahil
 include __DIR__ . '/../includes/header.php';
 include __DIR__ . '/../includes/navbar.php';
-
 ?>
 
 <div class="container mt-5" style="max-width:800px;">
     <h2 class="mb-4">Restoran Bilgilerim</h2>
 
-    <?php if ($error): ?>
-        <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
-    <?php endif; ?>
-
-    <?php if ($message): ?>
-        <div class="alert alert-success"><?= htmlspecialchars($message) ?></div>
-    <?php endif; ?>
+    <?php if ($error): ?><div class="alert alert-danger"><?= htmlspecialchars($error) ?></div><?php endif; ?>
+    <?php if ($message): ?><div class="alert alert-success"><?= htmlspecialchars($message) ?></div><?php endif; ?>
 
     <form method="post" enctype="multipart/form-data">
-
         <div class="mb-3">
             <label class="form-label">Restoran Adı</label>
             <input type="text" name="name" class="form-control" 
@@ -216,113 +208,99 @@ include __DIR__ . '/../includes/navbar.php';
             <div class="form-text">Bu alan doldurulursa restaurant_info.php'de HTML render edilir.</div>
         </div>
 
-        <div class="mb-3">
-            <label class="form-label">E-posta</label>
-            <input type="email" name="email" class="form-control" 
-                   value="<?= htmlspecialchars($restaurant['Email'] ?? '') ?>" required>
+        <div class="mb-3"><label class="form-label">E-posta</label>
+            <input type="email" name="email" class="form-control" value="<?= htmlspecialchars($restaurant['Email'] ?? '') ?>" required>
         </div>
 
-        <div class="mb-3">
-            <label class="form-label">Telefon</label>
-            <input type="text" name="phone" class="form-control" 
-                   value="<?= htmlspecialchars($restaurant['Phone'] ?? '') ?>">
+        <div class="mb-3"><label class="form-label">Telefon</label>
+            <input type="text" name="phone" class="form-control" value="<?= htmlspecialchars($restaurant['Phone'] ?? '') ?>">
         </div>
 
-        <div class="mb-3">
-            <label class="form-label">Adres</label>
+        <div class="mb-3"><label class="form-label">Adres</label>
             <textarea name="address" class="form-control" rows="3"><?= htmlspecialchars($restaurant['Address'] ?? '') ?></textarea>
         </div>
 
-        <div class="mb-3">
-            <label class="form-label">Konum Linki (Google Maps URL)</label>
-            <input type="text" name="map_url" class="form-control" 
+        <div class="mb-3"><label class="form-label">Konum Linki (Google Maps URL)</label>
+            <input type="text" name="map_url" class="form-control"
                    placeholder="https://goo.gl/maps/..." 
                    value="<?= htmlspecialchars($restaurant['MapUrl'] ?? '') ?>">
-            <div class="form-text">Müşterilerin haritada sizi bulabilmesi için Google Maps bağlantısını ekleyin.</div>
         </div>
 
-        <div class="mb-3">
-            <label class="form-label">Yeni Şifre (boş bırakılırsa değişmez)</label>
-            <input type="password" name="password" class="form-control">
-        </div>
-
+        
         <hr>
 
         <!-- Diller -->
         <div class="mb-3">
             <label class="form-label">Kullanılacak Diller</label>
             <?php if (empty($allLanguages)): ?>
-                <div class="alert alert-warning">Dil listesi bulunamadı. Lütfen sistem yöneticisine başvurun.</div>
+                <div class="alert alert-warning">Dil listesi bulunamadı.</div>
             <?php else: ?>
                 <?php foreach ($allLanguages as $L):
-                    $code = $L['LangCode'];
-                    $name = $L['LangName'];
+                    $code = $L['LangCode']; $name = $L['LangName'];
                     $checked = isset($selectedLangs[$code]);
                     $isDefault = $checked && ($code === $currentDefaultLang);
                 ?>
-                    <div class="lang-row">
+                    <div class="lang-row d-flex align-items-center justify-content-between mb-2">
                         <div class="form-check">
                             <input class="form-check-input lang-check" type="checkbox"
-                                   id="lang_<?= htmlspecialchars($code) ?>"
-                                   name="langs[]" value="<?= htmlspecialchars($code) ?>"
-                                   <?= $checked ? 'checked' : '' ?>>
-                            <label class="form-check-label" for="lang_<?= htmlspecialchars($code) ?>">
-                                <?= htmlspecialchars($name) ?> (<?= strtoupper(htmlspecialchars($code)) ?>)
+                                   id="lang_<?= $code ?>" name="langs[]" value="<?= $code ?>" <?= $checked ? 'checked' : '' ?>>
+                            <label class="form-check-label" for="lang_<?= $code ?>">
+                                <?= htmlspecialchars($name) ?> (<?= strtoupper($code) ?>)
                             </label>
                         </div>
-                        <div class="spacer"></div>
                         <div class="form-check form-check-inline">
                             <input class="form-check-input default-radio" type="radio"
-                                   name="default_lang" id="def_<?= htmlspecialchars($code) ?>"
-                                   value="<?= htmlspecialchars($code) ?>"
-                                   <?= $isDefault ? 'checked' : '' ?>
-                                   <?= $checked ? '' : 'disabled' ?>>
-                            <label class="form-check-label" for="def_<?= htmlspecialchars($code) ?>">Varsayılan</label>
+                                   name="default_lang" id="def_<?= $code ?>" value="<?= $code ?>"
+                                   <?= $isDefault ? 'checked' : '' ?> <?= $checked ? '' : 'disabled' ?>>
+                            <label class="form-check-label" for="def_<?= $code ?>">Varsayılan</label>
                         </div>
                     </div>
                 <?php endforeach; ?>
-                <div class="form-text mt-2">
-                    En az bir dil seçin ve biri <b>Varsayılan</b> olsun. Varsayılan dil menü/metin gösteriminde önceliklidir.
-                </div>
             <?php endif; ?>
+        </div>
+
+        <hr>
+        <!-- 🌗 Tema Seçimi -->
+        <div class="mb-3">
+            <label class="form-label">Tema Seçimi</label>
+            <select name="theme_mode" class="form-select" style="max-width:250px;">
+                <?php
+                $theme = $restaurant['ThemeMode'] ?? 'auto';
+                $options = [
+                    'auto' => 'Otomatik (kullanıcı cihazına göre)',
+                    'light' => 'Açık Tema',
+                    'dark' => 'Koyu Tema'
+                ];
+                foreach ($options as $key => $label): ?>
+                    <option value="<?= $key ?>" <?= $theme === $key ? 'selected' : '' ?>>
+                        <?= htmlspecialchars($label) ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
         </div>
 
         <hr>
 
         <!-- Ana Görsel -->
         <div class="mb-3">
-            <label class="form-label">Restoran Ana Görsel / Logo</label>
+            <label class="form-label">Ana Görsel / Logo</label>
             <?php if (!empty($restaurant['MainImage'])): ?>
-                <div class="mb-2">
-                    <img src="../<?= htmlspecialchars(ltrim($restaurant['MainImage'], '/')) ?>" 
-                         alt="Ana Görsel" style="max-width:300px; border:1px solid #ccc; border-radius:6px;">
-                </div>
-                <button type="submit" name="delete_main" value="1"
-                        class="btn btn-danger mb-2"
-                        onclick="return confirm('Ana görseli silmek istiyor musunuz?')">
-                    Ana Görseli Sil
-                </button>
+                <div class="mb-2"><img src="../<?= htmlspecialchars($restaurant['MainImage']) ?>" style="max-width:300px;border:1px solid #ccc;border-radius:6px;"></div>
+                <button type="submit" name="delete_main" value="1" class="btn btn-danger mb-2"
+                        onclick="return confirm('Ana görseli silmek istiyor musunuz?')">Ana Görseli Sil</button>
             <?php endif; ?>
             <input type="file" name="main_image" class="form-control mt-2" accept="image/*">
-            <div class="form-text">Yeni bir ana görsel seçersen eski silinir.</div>
         </div>
 
         <!-- Arka Plan Görseli -->
         <div class="mb-3">
-            <label class="form-label">Restoran Arka Plan Görseli</label>
+            <label class="form-label">Arka Plan Görseli</label>
             <?php if (!empty($restaurant['BackgroundImage'])): ?>
-                <div class="mb-2">
-                    <img src="../<?= htmlspecialchars(ltrim($restaurant['BackgroundImage'], '/')) ?>" 
-                         alt="Arka Plan" style="max-width:300px; border:1px solid #ccc; border-radius:6px;">
-                </div>
-                <button type="submit" name="delete_background" value="1"
-                        class="btn btn-danger mb-2"
-                        onclick="return confirm('Arka plan resmini silmek istiyor musunuz?')">
-                    Arka Planı Sil
-                </button>
+                <div class="mb-2"><img src="../<?= htmlspecialchars($restaurant['BackgroundImage']) ?>" style="max-width:300px;border:1px solid #ccc;border-radius:6px;"></div>
+                <button type="submit" name="delete_background" value="1" class="btn btn-danger mb-2"
+                        onclick="return confirm('Arka plan resmini silmek istiyor musunuz?')">Arka Planı Sil</button>
             <?php endif; ?>
             <input type="file" name="bg_image" class="form-control mt-2" accept="image/*">
-            <div class="form-text">Yeni bir arka plan resmi seçersen eski otomatik silinir.</div>
         </div>
 
         <div class="mt-4">
@@ -333,22 +311,15 @@ include __DIR__ . '/../includes/navbar.php';
 </div>
 
 <script>
-(function(){
-    // Checkbox -> Varsayılan radio enable/disable
-    document.querySelectorAll('.lang-check').forEach(cb => {
-        cb.addEventListener('change', () => {
-            const code = cb.value;
-            const radio = document.getElementById('def_' + code);
-            if (cb.checked) {
-                radio.removeAttribute('disabled');
-            } else {
-                radio.checked = false;
-                radio.setAttribute('disabled', 'disabled');
-            }
-        });
+document.querySelectorAll('.lang-check').forEach(cb => {
+    cb.addEventListener('change', () => {
+        const code = cb.value;
+        const radio = document.getElementById('def_' + code);
+        if (cb.checked) radio.removeAttribute('disabled');
+        else { radio.checked = false; radio.setAttribute('disabled', 'disabled'); }
     });
-})();
+});
 </script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <?php include __DIR__ . '/../includes/footer.php'; ?>

@@ -149,6 +149,21 @@ footer {
     </div>
 </section>
 
+<!-- Demo Menü menu_order.php?hash=5478d80090511813af5bff4a&theme=dark&lang=tr -->
+<section class="container text-center py-5">
+    <div class="demo-card mx-auto" style="max-width: 520px;">
+        <h4 class="mb-3"><i class="bi bi-book"></i> Örnek Menü</h4>
+        <p class="text-muted mb-4">VovMenu ile hazırlanmış örnek menüyü inceleyin.</p>
+        <a href="restaurant_info.php?hash=65a7e0bc3485b8738c6d7387&theme=dark" 
+           class="btn btn-success btn-lg" target="_blank">
+           Menüyü Gör
+        </a>
+    </div>
+</section>
+
+
+
+
 <footer>
     &copy; <?= date('Y') ?> VovMenu — Tüm Hakları Saklıdır
 </footer>

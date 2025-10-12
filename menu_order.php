@@ -36,8 +36,27 @@ function resolve_table(PDO $pdo, string $hash) {
 $table = resolve_table($pdo, $hash);
 if (!$table || !$table['IsActive']) die('Masa bulunamadı veya pasif.');
 
+
 $restaurantId = (int)$table['RestaurantID'];
 $tableName    = $table['Name'];
+
+
+
+/* ====== Restoran bilgisi ====== */
+$stmt = $pdo->prepare("SELECT RestaurantID, Name, OrderUse FROM Restaurants WHERE RestaurantID = ? ");
+$stmt->execute([$table['RestaurantID']]);
+$restaurant = $stmt->fetch(PDO::FETCH_ASSOC);
+
+if (!$restaurant) {
+    die('Restoran bulunamadı.');
+}
+
+/* ====== OrderUse kontrolü ====== */
+if (strtoupper($restaurant['OrderUse']) === 'N') {
+    die('Restoranın sipariş yetkisi yok.');
+}
+
+
 
 // Masa çözümünden sonra restoran bilgilerini çek
 $stmt = $pdo->prepare("SELECT Name FROM Restaurants WHERE RestaurantID = ?");

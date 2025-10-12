@@ -41,6 +41,7 @@ $addr      = $r['Address'] ?? '';
 $phone     = $r['Phone'] ?? '';
 $email     = $r['Email'] ?? '';
 $map       = $r['MapUrl'] ?? '';
+$orderuse       = $r['OrderUse'] ?? '';
 $main      = !empty($r['MainImage']) ? ltrim($r['MainImage'], '/') : 'uploads/default_cover.jpg';
 if (!$lang) $lang = $r['DefaultLanguage'] ?: 'tr';
 
@@ -163,16 +164,16 @@ body {
         $lc = strtolower($L['LangCode']);
         $flag = flag_code_from_lang($lc);
     ?>
-      <a href="menu.php?hash=<?= htmlspecialchars($hash) ?>&theme=<?= htmlspecialchars($theme) ?>&lang=<?= urlencode($lc) ?>">
+      <a href="<?= ($orderuse === 'Y' ? 'menu_order.php' : 'menu.php') ?>?hash=<?= htmlspecialchars($hash) ?>&theme=<?= htmlspecialchars($theme) ?>&lang=<?= urlencode($lc) ?>">
         <img src="https://flagcdn.com/w20/<?= htmlspecialchars($flag) ?>.png" alt="<?= htmlspecialchars($L['LangName']) ?>">
         <?= htmlspecialchars($L['LangName']) ?>
       </a>
     <?php endforeach; ?>
   <?php else: ?>
-      <a href="menu.php?hash=<?= htmlspecialchars($hash) ?>&theme=<?= htmlspecialchars($theme) ?>&lang=tr">
+      <a href="<?= ($orderuse === 'Y' ? 'menu_order.php' : 'menu.php') ?>?hash=<?= htmlspecialchars($hash) ?>&theme=<?= htmlspecialchars($theme) ?>&lang=tr">
         <img src="https://flagcdn.com/w20/tr.png" alt="Türkçe">
       </a>
-      <a href="menu.php?hash=<?= htmlspecialchars($hash) ?>&theme=<?= htmlspecialchars($theme) ?>&lang=en">
+      <a href="<?= ($orderuse === 'Y' ? 'menu_order.php' : 'menu.php') ?>?hash=<?= htmlspecialchars($hash) ?>&theme=<?= htmlspecialchars($theme) ?>&lang=en">
         <img src="https://flagcdn.com/w20/gb.png" alt="English">
       </a>
   <?php endif; ?>
