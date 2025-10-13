@@ -5,17 +5,28 @@ require_once __DIR__ . '/db.php';
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
+/* =====================
+   GİRİŞ PARAMETRELERİ
+===================== */
 $hash   = $_GET['hash']  ?? null;
 $itemId = $_GET['id']    ?? null;
 $theme  = $_GET['theme'] ?? 'light';
 $lang   = $_GET['lang']  ?? 'tr';
 $catId  = $_GET['cat']   ?? null;
+$from   = $_GET['from']  ?? null; // 👈 geldiği sayfa
 
 if (!$hash || !$itemId) die('Geçersiz bağlantı');
 
-/* ===================
+/* =====================
+   Geldiği sayfayı session’a kaydet
+===================== */
+if ($from && filter_var($from, FILTER_SANITIZE_URL)) {
+    $_SESSION['last_page'][$hash] = $from;
+}
+
+/* =====================
    Sabit / HASH çözümü
-   =================== */
+===================== */
 if (!defined('RESTMENU_HASH_PEPPER')) {
     define('RESTMENU_HASH_PEPPER', 'CHANGE_ME_TO_A_LONG_RANDOM_SECRET_STRING');
 }
@@ -38,9 +49,9 @@ function resolve_table(PDO $pdo, string $hash) {
 $table = resolve_table($pdo, $hash);
 if (!$table || !$table['IsActive']) die('Masa bulunamadı veya pasif.');
 
-/* ===================
+/* =====================
    Restoran bilgisi
-   =================== */
+===================== */
 $stmt = $pdo->prepare("SELECT RestaurantID, Name, DefaultLanguage FROM Restaurants WHERE RestaurantID=?");
 $stmt->execute([$table['RestaurantID']]);
 $restaurant = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -49,9 +60,9 @@ $restaurantId = (int)$restaurant['RestaurantID'];
 $restaurantName = $restaurant['Name'];
 if (!$lang) $lang = $restaurant['DefaultLanguage'] ?: 'tr';
 
-/* ===================
+/* =====================
    Diller
-   =================== */
+===================== */
 $langStmt = $pdo->prepare("
     SELECT rl.LangCode, rl.IsDefault, l.LangName
     FROM RestaurantLanguages rl
@@ -67,18 +78,18 @@ function flag_code_from_lang($lc) {
     return $map[strtolower($lc)] ?? strtolower($lc);
 }
 
-/* ===================
+/* =====================
    UI Metinleri
-   =================== */
+===================== */
 $tx = [
   'tr' => ['back'=>'Geri','options'=>'Seçenekler','add'=>'Sepete Ekle','home'=>'Ana Menü','cart'=>'Sepet','orders'=>'Siparişlerim'],
   'en' => ['back'=>'Back','options'=>'Options','add'=>'Add to Cart','home'=>'Home','cart'=>'Cart','orders'=>'My Orders']
 ];
 $T = $tx[strtolower($lang)] ?? $tx['tr'];
 
-/* ===================
+/* =====================
    Ürün + Opsiyonlar
-   =================== */
+===================== */
 $stmt = $pdo->prepare("
     SELECT m.MenuItemID,m.MenuName,m.Description,m.SubCategoryID,
            COALESCE(mt.Name,m.MenuName) AS MenuNameDisp,
@@ -112,6 +123,14 @@ $total=0;
 if(!empty($_SESSION['cart'][$hash])){
   foreach($_SESSION['cart'][$hash] as $it){$total+=$it['price']*$it['qty'];}
 }
+
+/* =====================
+   Back URL oluştur
+===================== */
+$backUrl = $_SESSION['last_page'][$hash] ?? '';
+if (empty($backUrl) || strpos($backUrl, $_SERVER['HTTP_HOST']) === false) {
+    $backUrl = "menu_order.php?hash=" . urlencode($hash) . "&theme=" . urlencode($theme) . "&lang=" . urlencode($lang);
+}
 ?>
 <!DOCTYPE html>
 <html lang="<?= htmlspecialchars($lang) ?>">
@@ -123,26 +142,29 @@ if(!empty($_SESSION['cart'][$hash])){
 <link href="https://fonts.googleapis.com/css2?family=Ibarra+Real+Nova:wght@400;600;700&display=swap" rel="stylesheet">
 <link href="assets/menu.css" rel="stylesheet">
 <style>
-/* 🟡 Masaüstünde sayfa genişliğini daralt ve ortala */
-@media (min-width: 992px) {
-  .container {
-    max-width: 500px;   /* 600-800 arası en ideal */
-  }
-}
-
+@media (min-width: 992px) {.container {max-width:500px;}}
+.header-with-button {padding-top:44px;}
+@media(min-width:576px){.header-with-button{padding-top:52px;}}
 </style>
 </head>
 
 <body class="menu-body" data-theme="<?= htmlspecialchars($theme) ?>">
 
-  <div class="container my-4">
+<div class="container my-4">
 
 <div class="header-with-button position-relative text-center mb-3">
-  <!-- 🟢 Sağ üstte buton -->
-  <button type="button"
+  <!-- 🟢 Sağ üstte Menüye Dön -->
+ <?php
+// Geri linki oluştur (cat parametresi dahil)
+$catPart = isset($_GET['cat']) ? '&cat='.(int)$_GET['cat'] : '';
+$backUrl = "menu_order.php?hash=" . urlencode($_GET['hash'] ?? '') .
+            "&theme=" . urlencode($_GET['theme'] ?? 'light') .
+            "&lang=" . urlencode($_GET['lang'] ?? 'tr') .
+            $catPart;
+?> <button type="button"
           class="btn btn-outline-secondary btn-sm position-absolute"
-          style="top:0; right:0;"
-          onclick="window.history.back()">
+          style="top:8px; right:12px;"
+          onclick="window.location.href='<?= htmlspecialchars($backUrl) ?>'">
     Menüye Dön
   </button>
 
@@ -150,8 +172,6 @@ if(!empty($_SESSION['cart'][$hash])){
   <h1 class="mb-1 mt-2 mt-sm-3"><?= htmlspecialchars($restaurantName) ?></h1>
   <h3 class="mb-0"><?= htmlspecialchars($item['MenuNameDisp']) ?></h3>
 </div>
-
-
 
   <div class="card">
     <?php if(!empty($images)): ?>
@@ -205,10 +225,10 @@ if(!empty($_SESSION['cart'][$hash])){
 <div class="vov-cart-bar">
   <div class="cart-bar-inner container">
     <a href="menu_order.php?hash=<?= urlencode($hash) ?>&theme=<?= urlencode($theme) ?>&lang=<?= urlencode($lang) ?>" class="btn btn-outline-secondary btn-sm">🍽️ <?= $T['home'] ?></a>
-    <a href="menu_cart.php?hash=<?= urlencode($hash) ?>&theme=<?= urlencode($theme) ?>&lang=<?= urlencode($lang) ?>" class="btn btn-outline-success btn-sm" id="cartButtonBar">
+    <a href="menu_cart.php?hash=<?= urlencode($hash) ?>&theme=<?= urlencode($theme) ?>&lang=<?= urlencode($lang) ?>&from=<?= $_SERVER['REQUEST_URI'] ?>" class="btn btn-outline-success btn-sm" id="cartButtonBar">
       🛒 <?= $T['cart'] ?> (₺<?= number_format($total,2,',','.') ?>)
     </a>
-    <a href="orders.php?hash=<?= urlencode($hash) ?>&theme=<?= urlencode($theme) ?>&lang=<?= urlencode($lang) ?>" class="btn btn-outline-primary btn-sm">📋 <?= $T['orders'] ?></a>
+    <a href="orders.php?hash=<?= urlencode($hash) ?>&theme=<?= urlencode($theme) ?>&lang=<?= urlencode($lang) ?>&from=<?= $_SERVER['REQUEST_URI'] ?>" class="btn btn-outline-primary btn-sm">📋 <?= $T['orders'] ?></a>
   </div>
 </div>
 
@@ -218,7 +238,6 @@ if(!empty($_SESSION['cart'][$hash])){
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
-// 🔹 Toast
 function showToast(msg,type='success'){
  const c=document.getElementById('toastContainer');
  const id='t'+Math.random().toString(36).slice(2);
@@ -231,7 +250,6 @@ function showToast(msg,type='success'){
  el.addEventListener('hidden.bs.toast',()=>el.remove());
 }
 
-// 🔹 Artı / Eksi butonları
 document.addEventListener('click',e=>{
  if(e.target.closest('.qty-plus')){
    const i=e.target.closest('.qty-group').querySelector('.qty-input');
@@ -243,7 +261,6 @@ document.addEventListener('click',e=>{
  }
 });
 
-// 🔹 Sepete ekle (birden fazla option)
 document.querySelector('.add-to-cart').addEventListener('click',async()=>{
  const hash=document.querySelector('.add-to-cart').dataset.hash;
  const itemId=document.querySelector('.add-to-cart').dataset.itemId;
@@ -268,32 +285,12 @@ document.querySelector('.add-to-cart').addEventListener('click',async()=>{
  if(added>0){
    const formatted=Number(totalUpdated||0).toFixed(2).replace('.',',').replace(/\B(?=(\d{3})+(?!\d))/g,'.');
    document.getElementById('cartButtonBar').innerHTML=`🛒 <?= $T['cart'] ?> (₺${formatted})`;
-   // inputları sıfırla
    document.querySelectorAll('.qty-input').forEach(i=>i.value='0');
    showToast('Sepete eklendi');
  }else{
    showToast('Lütfen adet giriniz','danger');
  }
 });
-
-function goBack() {
-  if (document.referrer && document.referrer.includes('menu_order.php')) {
-    window.history.back(); // tarayıcı geçmişine dön
-  } else {
-    // fallback - doğrudan kategoriye veya ana menüye
-    const params = new URLSearchParams(window.location.search);
-    const hash = params.get("hash");
-    const theme = params.get("theme") || "light";
-    const lang = params.get("lang") || "tr";
-    const cat = params.get("cat");
-    let url = "menu_order.php?hash=" + encodeURIComponent(hash)
-            + "&theme=" + encodeURIComponent(theme)
-            + "&lang=" + encodeURIComponent(lang);
-    if (cat) url += "&cat=" + encodeURIComponent(cat);
-    window.location.href = url;
-  }
-}
-
 </script>
 </body>
 </html>

@@ -1,5 +1,9 @@
 <?php
 session_start();
+if (!isset($_SESSION['last_page'][$_GET['hash'] ?? ''])) {
+    $_SESSION['last_page'][$_GET['hash'] ?? ''] = $_SERVER['HTTP_REFERER'] ?? '';
+}
+
 require_once __DIR__ . '/db.php';
 
 $theme = $_GET['theme'] ?? 'light';
@@ -70,9 +74,17 @@ try {
   <div class="d-flex justify-content-between align-items-center mb-4">
     <h4 class="fw-bold mb-0">🧾 Siparişlerim</h4>
 <?php
-$backUrl = $_SERVER['HTTP_REFERER'] ?? "menu_order.php?hash=" . urlencode($hash) . "&theme=" . urlencode($theme) . "&lang=" . urlencode($lang);
+// 🔹 Menüye Dön linkini oluştur (cat varsa ekle)
+$catPart = isset($_GET['cat']) ? '&cat='.(int)$_GET['cat'] : '';
+$backUrl = "menu_order.php?hash=" . urlencode($_GET['hash'] ?? '') .
+            "&theme=" . urlencode($_GET['theme'] ?? 'light') .
+            "&lang=" . urlencode($_GET['lang'] ?? 'tr') .
+            $catPart;
 ?>
-<a href="<?= htmlspecialchars($backUrl) ?>" class="btn btn-outline-secondary btn-sm">Menüye Dön</a>
+
+<a href="<?= htmlspecialchars($backUrl) ?>" class="btn btn-outline-secondary btn-sm">
+  Menüye Dön
+</a>
 
   </div>
 

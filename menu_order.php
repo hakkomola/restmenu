@@ -278,8 +278,14 @@ if (!empty($_SESSION['cart'][$hash])) {
               $quickOptionId = $defaultOptionID ?: ($singleOptionID ?: null);
               $displayPrice = $defaultPrice ?? $singlePrice;
 
-              $detailUrl = 'menu_order_item.php?id='.(int)$item['MenuItemID'].'&hash='.urlencode($hash).'&theme='.urlencode($theme).'&lang='.urlencode($lang);
+$detailUrl = 'menu_order_item.php?id='.(int)$item['MenuItemID']
+    .'&hash='.urlencode($hash)
+    .'&theme='.urlencode($theme)
+    .'&lang='.urlencode($lang)
+    .'&from='.$_SERVER['REQUEST_URI'];
             ?>
+
+            
             <div class="col-12 col-md-6 col-lg-4">
               <div class="card h-100 d-flex flex-column">
                 <!-- 📸 Görsel -->
@@ -374,12 +380,12 @@ $hasMultipleOptions = ($optionsCount > 1);
        🍽️ Ana Menü
     </a>
 
-    <a href="menu_cart.php?hash=<?= urlencode($hash) ?>&theme=<?= urlencode($theme) ?>&lang=<?= urlencode($lang) ?>"
+    <a href="menu_cart.php?hash=<?= urlencode($hash) ?>&theme=<?= urlencode($theme) ?>&lang=<?= urlencode($lang) ?>&from=<?= $_SERVER['REQUEST_URI'] ?>"
        class="btn btn-outline-success btn-sm" id="cartButtonBar">
        🛒 Sepet (₺<?= number_format($total ?? 0, 2, ',', '.') ?>)
     </a>
 
-    <a href="orders.php?hash=<?= urlencode($hash) ?>&theme=<?= urlencode($theme) ?>&lang=<?= urlencode($lang) ?>"
+    <a href="orders.php?hash=<?= urlencode($hash) ?>&theme=<?= urlencode($theme) ?>&lang=<?= urlencode($lang) ?>&from=<?= $_SERVER['REQUEST_URI'] ?>"
        class="btn btn-outline-primary btn-sm">
        📋 Siparişlerim
     </a>
