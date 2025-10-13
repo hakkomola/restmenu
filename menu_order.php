@@ -278,7 +278,7 @@ if (!empty($_SESSION['cart'][$hash])) {
               $quickOptionId = $defaultOptionID ?: ($singleOptionID ?: null);
               $displayPrice = $defaultPrice ?? $singlePrice;
 
-              $detailUrl = 'menu_item.php?id='.(int)$item['MenuItemID'].'&hash='.urlencode($hash).'&theme='.urlencode($theme).'&lang='.urlencode($lang);
+              $detailUrl = 'menu_order_item.php?id='.(int)$item['MenuItemID'].'&hash='.urlencode($hash).'&theme='.urlencode($theme).'&lang='.urlencode($lang);
             ?>
             <div class="col-12 col-md-6 col-lg-4">
               <div class="card h-100 d-flex flex-column">
@@ -319,23 +319,30 @@ if (!empty($_SESSION['cart'][$hash])) {
                     <button class="btn btn-outline-secondary btn-sm qty-plus" type="button" <?= $quickOptionId?'':'disabled' ?>>+</button>
                   </div>
 
-                  <div class="mt-auto d-flex gap-2">
-                    <?php if ($quickOptionId): ?>
-                      <button class="btn <?= $addBtnColorClass ?> btn-sm flex-grow-1 add-to-cart"
-                              data-item-id="<?= (int)$item['MenuItemID'] ?>"
-                              data-option-id="<?= (int)$quickOptionId ?>"
-                              data-hash="<?= htmlspecialchars($hash) ?>">
-                        <?= htmlspecialchars($tx['add']) ?>
-                      </button>
-                    <?php else: ?>
-                      <a class="btn btn-secondary btn-sm flex-grow-1 disabled"><?= htmlspecialchars($tx['add']) ?></a>
-                    <?php endif; ?>
+<?php
+// 🔹 Buton yapısı - tek/çoklu opsiyon ayrımı
+$hasMultipleOptions = ($optionsCount > 1);
+?>
+<div class="mt-auto d-flex gap-2">
+  <?php if ($quickOptionId): ?>
+    <button class="btn <?= $addBtnColorClass ?> btn-sm <?= $hasMultipleOptions ? 'flex-grow-1' : 'w-100' ?> add-to-cart"
+            data-item-id="<?= (int)$item['MenuItemID'] ?>"
+            data-option-id="<?= (int)$quickOptionId ?>"
+            data-hash="<?= htmlspecialchars($hash) ?>">
+      <?= htmlspecialchars($tx['add']) ?>
+    </button>
+  <?php else: ?>
+    <a class="btn btn-secondary btn-sm <?= $hasMultipleOptions ? 'flex-grow-1' : 'w-100' ?> disabled"><?= htmlspecialchars($tx['add']) ?></a>
+  <?php endif; ?>
 
-                    <a href="<?= $detailUrl ?>"
-                       class="btn <?= $theme==='dark'?'btn-outline-light':'btn-outline-secondary' ?> btn-sm">
-                      <?= htmlspecialchars($tx['more']) ?>
-                    </a>
-                  </div>
+  <?php if ($hasMultipleOptions): ?>
+    <a href="<?= $detailUrl ?>"
+       class="btn <?= $theme==='dark'?'btn-outline-light':'btn-outline-secondary' ?> btn-sm">
+       <?= htmlspecialchars($tx['more']) ?>
+    </a>
+  <?php endif; ?>
+</div>
+
                 </div>
               </div>
             </div>
@@ -522,7 +529,12 @@ document.addEventListener("DOMContentLoaded", function() {
   });
 });
 
-
+// Sayfa tarayıcı geçmişinden geri gelince otomatik yenile
+window.addEventListener("pageshow", function (event) {
+  if (event.persisted || performance.getEntriesByType("navigation")[0]?.type === "back_forward") {
+    window.location.reload();
+  }
+});
 
 </script>
 

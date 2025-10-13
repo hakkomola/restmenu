@@ -395,3 +395,12 @@ body[data-theme="dark"] .subcategory-menu a.btn.active {
     padding: 6px 8px !important;
   }
 }
+/* buton için üst boşluk aç */
+.header-with-button {
+  padding-top: 44px; /* btn-sm yüksekliği + rahat pay */
+}
+
+/* büyük ekranlarda biraz daha ferah */
+@media (min-width: 576px) {
+  .header-with-button { padding-top: 52px; }
+}

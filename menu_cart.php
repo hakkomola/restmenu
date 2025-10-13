@@ -30,7 +30,11 @@ foreach ($cart as $key => $item) {
 <div class="container py-4">
   <div class="d-flex justify-content-between align-items-center mb-4">
     <h4 class="fw-bold mb-0">🛒 Sepetiniz</h4>
-    <a href="menu_order.php?hash=<?= urlencode($hash) ?>&theme=<?= urlencode($theme) ?>&lang=<?= urlencode($lang) ?>" class="btn btn-outline-secondary btn-sm">Menüye Dön</a>
+    <?php
+$backUrl = $_SERVER['HTTP_REFERER'] ?? "menu_order.php?hash=" . urlencode($hash) . "&theme=" . urlencode($theme) . "&lang=" . urlencode($lang);
+?>
+<a href="<?= htmlspecialchars($backUrl) ?>" class="btn btn-outline-secondary btn-sm">Menüye Dön</a>
+
   </div>
 
   <?php if (empty($cart)): ?>
