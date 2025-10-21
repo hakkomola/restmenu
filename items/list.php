@@ -26,10 +26,12 @@ $filterSubCategory = $_GET['subcategory'] ?? '';
 
 // Menü öğeleri
 $sql = '
-    SELECT mi.*, sc.SubCategoryID, sc.SubCategoryName, mc.CategoryID, mc.CategoryName
+    SELECT mi.MenuItemID,mi.RestaurantID,mi.MenuName,mi.Description,mo.Price,mi.SortOrder,mi.SubCategoryID,
+    sc.SubCategoryID, sc.SubCategoryName, mc.CategoryID, mc.CategoryName
     FROM MenuItems mi
     LEFT JOIN SubCategories sc ON mi.SubCategoryID = sc.SubCategoryID
     LEFT JOIN MenuCategories mc ON sc.CategoryID = mc.CategoryID
+    LEFT JOIN MenuItemOptions mo ON mi.MenuItemID=mo.MenuItemID and IsDefault  = 1  
     WHERE mi.RestaurantID = ?
 ';
 $params = [$restaurantId];
@@ -84,44 +86,58 @@ include __DIR__ . '/../includes/navbar.php';
       <i class="bi bi-arrow-left"></i> Geri
     </a>
   </div>
+<!-- Toplu İşlem Alanı -->
+<div class="mb-3 d-flex flex-wrap align-items-center gap-2">
+  <select id="bulkAction" class="form-select w-auto">
+    <option value="">-- Toplu İşlem Seç --</option>
+    <option value="delete">Seçilenleri Sil</option>
+    <option value="increase_percent">Fiyatı % Arttır</option>
+    <option value="increase_fixed">Fiyata TL Ekle</option>
+  </select>
 
-  <!-- Menü Tablosu -->
-  <div class="table-responsive">
-    <table class="table table-bordered align-middle" id="menu-table">
-      <thead class="table-light">
-        <tr>
-          <th style="width:50px;">#</th>
-          <th>Menü Adı</th>
-          <th>Kategori</th>
-          <th>Alt Kategori</th>
-          <th>Açıklama</th>
-          <th>Fiyat</th>
-          <th style="width:200px;">İşlemler</th>
-        </tr>
-      </thead>
-      <tbody id="sortable">
-        <?php foreach ($menuItems as $item): ?>
-        <tr data-id="<?= $item['MenuItemID'] ?>">
-          <td class="drag-handle">☰</td>
-          <td><?= htmlspecialchars($item['MenuName']) ?></td>
-          <td><?= htmlspecialchars($item['CategoryName'] ?? '-') ?></td>
-          <td><?= htmlspecialchars($item['SubCategoryName'] ?? '-') ?></td>
-          <td><?= htmlspecialchars($item['Description']) ?></td>
-          <td><?= number_format($item['Price'], 2) ?> ₺</td>
-          <td>
-            <a href="edit.php?id=<?= $item['MenuItemID'] ?>" class="btn btn-primary btn-sm">
-              <i class="bi bi-pencil-square"></i> Düzenle
-            </a>
-            <a href="delete.php?id=<?= $item['MenuItemID'] ?>" class="btn btn-danger btn-sm"
-               onclick="return confirm('Silmek istediğinize emin misiniz?')">
-               <i class="bi bi-trash"></i> Sil
-            </a>
-          </td>
-        </tr>
-        <?php endforeach; ?>
-      </tbody>
-    </table>
-  </div>
+  <input type="number" id="bulkValue" class="form-control w-auto" placeholder="Değer (örn. 10)" step="0.01">
+  <button id="applyBulk" class="btn btn-primary">Uygula</button>
+</div>
+ <!-- Menü Tablosu -->
+<div class="table-responsive">
+  <table class="table table-bordered align-middle" id="menu-table">
+    <thead class="table-light">
+      <tr>
+        <th style="width:40px;">
+          <input type="checkbox" id="checkAll">
+        </th>
+        <th style="width:50px;">#</th>
+        <th>Menü Adı</th>
+        <th>Kategori</th>
+        <th>Alt Kategori</th>
+        <th>Açıklama</th>
+        <th>Fiyat</th>
+        <th style="width:200px;">İşlemler</th>
+      </tr>
+    </thead>
+    <tbody id="sortable">
+      <?php foreach ($menuItems as $item): ?>
+      <tr data-id="<?= $item['MenuItemID'] ?>">
+        <td><input type="checkbox" class="row-check" value="<?= $item['MenuItemID'] ?>"></td>
+        <td class="drag-handle">☰</td>
+        <td><?= htmlspecialchars($item['MenuName']) ?></td>
+        <td><?= htmlspecialchars($item['CategoryName'] ?? '-') ?></td>
+        <td><?= htmlspecialchars($item['SubCategoryName'] ?? '-') ?></td>
+        <td><?= htmlspecialchars($item['Description']) ?></td>
+        <td><?= number_format($item['Price'], 2) ?> ₺</td>
+        <td>
+          <a href="edit.php?id=<?= $item['MenuItemID'] ?>" class="btn btn-primary btn-sm">
+            <i class="bi bi-pencil-square"></i> Düzenle
+          </a>
+          <a href="delete.php?id=<?= $item['MenuItemID'] ?>" class="btn btn-danger btn-sm"
+             onclick="return confirm('Silmek istediğinize emin misiniz?')">
+             <i class="bi bi-trash"></i> Sil
+          </a>
+        </td>
+      </tr>
+      <?php endforeach; ?>
+    </tbody>
+  </table>
 </div>
 
 <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
@@ -219,6 +235,38 @@ $(function() {
     });
   }
 });
+
+});
+
+$(function() {
+
+  // ✅ Tümünü seç / kaldır
+  $('#checkAll').on('change', function() {
+    $('.row-check').prop('checked', this.checked);
+  });
+
+  // ✅ Toplu işlem butonu
+  $('#applyBulk').on('click', function() {
+    const action = $('#bulkAction').val();
+    const value = parseFloat($('#bulkValue').val()) || 0;
+    const ids = $('.row-check:checked').map(function(){ return this.value; }).get();
+
+    if (ids.length === 0) return alert('Lütfen en az bir kayıt seçin.');
+    if (!action) return alert('Lütfen bir işlem seçin.');
+
+    if (!confirm('Bu işlemi uygulamak istediğinize emin misiniz?')) return;
+
+    $.post('bulk_action.php', { action, value, ids }, function(res){
+      try {
+        const data = JSON.parse(res);
+        alert(data.message);
+        if (data.status === 'success') location.reload();
+      } catch(e) {
+        console.error(res);
+        alert('Beklenmeyen bir hata oluştu.');
+      }
+    });
+  });
 
 });
 </script>

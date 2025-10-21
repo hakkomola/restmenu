@@ -91,7 +91,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             $pdo->commit();
-            header("Location: list.php?category_id=".$categoryId);
+            header("Location: list.php?category_id=" . urlencode($_GET['category_id']));
             exit;
         } catch (Exception $e) {
             $pdo->rollBack();

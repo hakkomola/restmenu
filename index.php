@@ -158,6 +158,51 @@ footer i { font-size: 1.2rem; margin: 0 6px; color: #0d6efd; }
 .stat-card:hover i {
   transform: scale(1.1);
 }
+
+/* Mobilde giriş / üye ol butonlarını hizala ve eşitle */
+@media (max-width: 991px) {
+  .navbar .btn {
+    display: block;
+    width: 100%;
+    margin: 6px 0 !important;
+    font-size: 1rem;
+    padding: 10px 0;
+  }
+}
+
+/* Buton boylarını ve hizasını eşitle (masaüstü dahil) */
+.navbar .btn {
+  font-weight: 600;
+  padding: 8px 16px;
+  line-height: 1.2;
+}
+.navbar .btn-outline-primary {
+  border-width: 2px;
+}
+.navbar .btn-primary {
+  border-width: 2px;
+}
+
+/* HERO butonlarını eşitle */
+.hero .btn {
+  min-width: 220px; /* aynı genişlik */
+  font-weight: 600;
+  padding: 12px 24px; /* aynı yükseklik */
+  border-width: 2px; /* outline olanla eşitleme */
+}
+
+.hero .btn-outline-light {
+  color: #fff;
+  background-color: transparent;
+  border-color: #fff;
+}
+
+.hero .btn-outline-light:hover {
+  background-color: #fff;
+  color: #0d6efd;
+}
+
+
 </style>
 </head>
 
@@ -192,8 +237,8 @@ footer i { font-size: 1.2rem; margin: 0 6px; color: #0d6efd; }
     <h1>Siz Hala QR Menünüzü Oluşturmadınız mı?</h1>
     <p>Menünüzü dijitale taşıyın, siparişli veya sade menü seçenekleriyle fark yaratın.  
     VovMenu, dijital menü çözümlerinde profesyonel deneyimiyle yanınızda.</p>
-    <a href="restaurants/register.php" class="btn btn-light btn-lg"><i class="bi bi-rocket-takeoff"></i> Menümü Dijitale Taşı</a>
-    <a href="restaurant_info.php?hash=65a7e0bc3485b8738c6d7387&theme=dark" class="btn btn-outline-light btn-lg"><i class="bi bi-book"></i> Demo Menüyü Gör</a>
+    <a href="restaurants/register.php" class="btn btn-light btn-lg"><i class="bi bi-rocket-takeoff"></i> QR Menü İstiyorum</a>
+    <a href="restaurant_info.php?hash=16187f14a8cbc3d54ef45471&theme=dark" class="btn btn-outline-light btn-lg"><i class="bi bi-book"></i> Örnek Menüyü Gör</a>
   </div>
 </div>
 
@@ -264,8 +309,8 @@ footer i { font-size: 1.2rem; margin: 0 6px; color: #0d6efd; }
     <div class="col-md-5">
       <div class="plan-card">
         <h4><i class="bi bi-book me-1"></i> Sadece Menü</h4>
-        <div class="price mb-2">99 TL <small class="text-muted">/ Ay</small></div>
-        <div class="price mb-3 text-secondary fs-6">990 TL / Yıl</div>
+        <div class="price mb-2">249 TL <small class="text-muted">/ Ay</small></div>
+        <div class="price mb-3 text-secondary fs-6">2.490 TL / Yıl</div>
         <ul class="list-unstyled">
           <li>QR Menü Paylaşımı</li>
           <li>Fiyat Güncelleme Kolaylığı</li>
@@ -281,8 +326,8 @@ footer i { font-size: 1.2rem; margin: 0 6px; color: #0d6efd; }
     <div class="col-md-5">
       <div class="plan-card border-primary">
         <h4><i class="bi bi-cart-check me-1"></i> Siparişli Menü</h4>
-        <div class="price mb-2">299 TL <small class="text-muted">/ Ay</small></div>
-        <div class="price mb-3 text-secondary fs-6">2.990 TL / Yıl</div>
+        <div class="price mb-2">449 TL <small class="text-muted">/ Ay</small></div>
+        <div class="price mb-3 text-secondary fs-6">4.490 TL / Yıl</div>
         <ul class="list-unstyled">
           <li>Tüm Menü Özellikleri</li>
           <li>Online Sipariş Alabilme</li>
@@ -354,32 +399,7 @@ footer i { font-size: 1.2rem; margin: 0 6px; color: #0d6efd; }
   </div>
 </section>
 
-<!-- RESMİ GAZETE POPUP -->
-<div class="modal fade" id="lawModal" tabindex="-1" aria-labelledby="lawModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-lg">
-    <div class="modal-content">
-      <div class="modal-header bg-warning-subtle">
-        <h5 class="modal-title fw-semibold" id="lawModalLabel">Artık Dijital Menü Zorunlu!</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Kapat"></button>
-      </div>
-      <div class="modal-body text-start">
-        <p>📜 11 Ekim 2025 tarihli ve 33044 sayılı Resmî Gazete’ye göre;</p>
-        <p>(5) Kamuoyunun aydınlatılması ve tüketicinin fiyatlara erişebilmesine imkân sağlanması amacıyla; 
-            lokanta, restoran, kafe, pastane ve benzeri yiyecek ve içecek hizmeti sunulan işyerleri, fiyat listelerine 
-            ilişkin verileri kurulacak olan sisteme aktarmakla yükümlüdür. Bu veriler ilgili kurum, kuruluş ve kamuoyuyla
-             paylaşılabilir. Sisteme veri aktarmakla yükümlü olan işyerlerine yönelik kriterler ile veri aktarımına ilişkin
-              usul ve esaslar Bakanlıkça belirlenir. Kriterleri belirlenen işyerleri, veri aktarımına ilişkin usul ve esasların 
-              Bakanlığın resmî internet sitesinde ilan edilmesine müteakip fiyat listelerini üç ay içerisinde sisteme aktarmak zorundadır.</p>
-      
-    <a href="https://www.resmigazete.gov.tr/eskiler/2025/10/20251011-6.htm" target="_blank">Resmi gazetede yayınlanan kararın tam metnine buradan ulaşabilirsiniz.</a>
-    </div>
-    
-      <div class="modal-footer">
-        <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Anladım</button>
-      </div>
-    </div>
-  </div>
-</div>
+
 
 <!-- FOOTER -->
 <footer>

@@ -1,5 +1,4 @@
 <?php
-// items/create.php
 session_start();
 require_once __DIR__ . '/../db.php';
 
@@ -12,11 +11,12 @@ $restaurantId = (int)$_SESSION['restaurant_id'];
 $message = '';
 $errors  = [];
 
-/** Kategoriler + alt kategoriler */
+/** Kategoriler */
 $catStmt = $pdo->prepare("SELECT * FROM MenuCategories WHERE RestaurantID = ? ORDER BY CategoryName ASC");
 $catStmt->execute([$restaurantId]);
 $categories = $catStmt->fetchAll(PDO::FETCH_ASSOC);
 
+/** Alt kategoriler */
 $subCategoriesMap = [];
 foreach ($categories as $cat) {
     $subStmt = $pdo->prepare("SELECT * FROM SubCategories WHERE CategoryID = ? ORDER BY SubCategoryName ASC");
@@ -24,7 +24,7 @@ foreach ($categories as $cat) {
     $subCategoriesMap[$cat['CategoryID']] = $subStmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
-/** Diller (RestaurantLanguages + Languages). Boşsa TR fallback. */
+/** Diller */
 try {
     $langStmt = $pdo->prepare("
         SELECT rl.LangCode, rl.IsDefault, l.LangName
@@ -45,7 +45,7 @@ $defaultLang = null;
 foreach ($languages as $L) { if (!empty($L['IsDefault'])) { $defaultLang = $L['LangCode']; break; } }
 if (!$defaultLang) $defaultLang = $languages[0]['LangCode'];
 
-/** MenuItemTranslations FK kolonu tespiti (MenuItemID/ItemID) */
+/** FK tespiti */
 $fkCol = 'MenuItemID';
 try {
     $colCheck = $pdo->prepare("
@@ -61,44 +61,40 @@ try {
     if ($found) $fkCol = $found;
 } catch (Exception $e) {}
 
-/** 🔹 FORM GÖNDERİMİ */
+/** === FORM GÖNDERİMİ === */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $subCategoryId = isset($_POST['sub_category_id']) ? (int)$_POST['sub_category_id'] : 0;
-    $price         = isset($_POST['price']) ? (float)$_POST['price'] : 0.0;
+
+    $isAjax = !empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest';
+    if ($isAjax) header('Content-Type: application/json');
+
+    $subCategoryId = (int)($_POST['sub_category_id'] ?? 0);
+    $price         = (float)($_POST['price'] ?? 0.0);
     $trans         = $_POST['trans'] ?? [];
 
     $defName = trim($trans[$defaultLang]['name'] ?? '');
     $defDesc = trim($trans[$defaultLang]['desc'] ?? '');
 
-    // Yeni seçenekler
     $optNewNames   = $_POST['options_new']['name']  ?? [];
     $optNewPrices  = $_POST['options_new']['price'] ?? [];
-    $optNewTrPost  = $_POST['options_new_tr']       ?? []; // [lang]['name'][]
-
-    // Tek radio grubu (options_def[IsDefault] -> "new-0", "new-1", ...)
+    $optNewTrPost  = $_POST['options_new_tr']       ?? [];
     $selectedDefault = $_POST['options_def']['IsDefault'] ?? null;
-    $optNewDefaultIndex = null;
-    if (is_string($selectedDefault) && strpos($selectedDefault, 'new-') === 0) {
-        $optNewDefaultIndex = substr($selectedDefault, 4);
-    }
+    $optNewDefaultIndex = (is_string($selectedDefault) && strpos($selectedDefault, 'new-') === 0)
+        ? substr($selectedDefault, 4)
+        : null;
 
-    if ($defName === '') {
-        $errors[] = strtoupper($defaultLang) . ' dilinde ürün adı zorunludur.';
-    }
-    if ($subCategoryId <= 0) {
-        $errors[] = 'Lütfen bir alt kategori seçin.';
-    }
+    if ($defName === '') $errors[] = strtoupper($defaultLang) . ' dilinde ürün adı zorunludur.';
+    if ($subCategoryId <= 0) $errors[] = 'Lütfen bir alt kategori seçin.';
 
     if (!$errors) {
         try {
             $pdo->beginTransaction();
 
-            // 1) Ürün
+            // 1️⃣ Ürün
             $ins = $pdo->prepare('INSERT INTO MenuItems (SubCategoryID, RestaurantID, MenuName, Description, Price) VALUES (?, ?, ?, ?, ?)');
-            $ins->execute([$subCategoryId, $restaurantId, $defName, ($defDesc !== '' ? $defDesc : null), $price]);
+            $ins->execute([$subCategoryId, $restaurantId, $defName, ($defDesc ?: null), $price]);
             $menuItemId = (int)$pdo->lastInsertId();
 
-            // 2) Çeviriler
+            // 2️⃣ Çeviriler
             if (!empty($languages)) {
                 $insTr = $pdo->prepare("INSERT INTO MenuItemTranslations ($fkCol, LangCode, Name, Description) VALUES (:iid, :lang, :name, :desc)");
                 foreach ($languages as $L) {
@@ -110,32 +106,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $insTr->execute([
                             ':iid'  => $menuItemId,
                             ':lang' => $lc,
-                            ':name' => ($nm !== '' ? $nm : $defName),
-                            ':desc' => ($ds !== '' ? $ds : null),
+                            ':name' => ($nm ?: $defName),
+                            ':desc' => ($ds ?: null),
                         ]);
                     }
                 }
             }
 
-            // 3) Seçenekler
+            // 3️⃣ Seçenekler
             $newOids = [];
             if (!empty($optNewNames)) {
                 $insO = $pdo->prepare('INSERT INTO MenuItemOptions (MenuItemID, OptionName, Price, IsDefault, SortOrder) VALUES (?, ?, ?, ?, ?)');
                 foreach ($optNewNames as $i => $nm) {
-                    $nm  = trim($nm ?? '');
+                    $nm = trim($nm);
                     if ($nm === '') continue;
-                    $prc = isset($optNewPrices[$i]) ? (float)$optNewPrices[$i] : 0.0;
-
-                    // sadece seçilen index 1, diğerleri 0
+                    $prc = (float)($optNewPrices[$i] ?? 0.0);
                     $isDef = ($optNewDefaultIndex !== null && (string)$i === (string)$optNewDefaultIndex) ? 1 : 0;
-
                     $insO->execute([$menuItemId, $nm, $prc, $isDef, $i]);
                     $newOids[$i] = (int)$pdo->lastInsertId();
                 }
             }
 
-            // 4) Seçenek çevirileri
-            if (!empty($newOids) && !empty($languages)) {
+            // 4️⃣ Seçenek çevirileri
+            if ($newOids && $languages) {
                 $insOTr = $pdo->prepare('INSERT INTO MenuItemOptionTranslations (OptionID, LangCode, Name) VALUES (?, ?, ?)');
                 foreach ($languages as $L) {
                     $lc = $L['LangCode'];
@@ -149,32 +142,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
 
-            // 5) Resimler
+            // 5️⃣ Resimler
             if (!empty($_FILES['images']['name'][0])) {
                 $uploadsDir = __DIR__ . '/../uploads/';
                 if (!is_dir($uploadsDir)) mkdir($uploadsDir, 0777, true);
-
                 $insImg = $pdo->prepare('INSERT INTO MenuImages (MenuItemID, ImageURL) VALUES (?, ?)');
-                foreach ($_FILES['images']['tmp_name'] as $index => $tmpName) {
+                foreach ($_FILES['images']['tmp_name'] as $i => $tmpName) {
                     if (!$tmpName) continue;
-                    $fileName = time() . '_' . basename($_FILES['images']['name'][$index]);
-                    $target   = $uploadsDir . $fileName;
-
+                    $fileName = time().'_'.basename($_FILES['images']['name'][$i]);
+                    $target = $uploadsDir.$fileName;
                     if (move_uploaded_file($tmpName, $target)) {
-                        $insImg->execute([$menuItemId, 'uploads/' . $fileName]);
+                        $insImg->execute([$menuItemId, 'uploads/'.$fileName]);
                     }
                 }
             }
 
             $pdo->commit();
+
+            if ($isAjax) {
+                echo json_encode(['status' => 'success']);
+                exit;
+            }
+
             header('Location: list.php');
             exit;
 
         } catch (Exception $e) {
             $pdo->rollBack();
+            if ($isAjax) {
+                echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+                exit;
+            }
             $message = 'Kayıt hatası: ' . $e->getMessage();
         }
     } else {
+        if ($isAjax) {
+            echo json_encode(['status' => 'error', 'message' => implode(', ', $errors)]);
+            exit;
+        }
         $message = implode('<br>', array_map('htmlspecialchars', $errors));
     }
 }
@@ -182,8 +187,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $pageTitle = "Yeni Menü Öğesi Ekle";
 include __DIR__ . '/../includes/header.php';
 include __DIR__ . '/../includes/navbar.php';
-
 ?>
+
 
 <div class="container mt-5" style="max-width: 900px;">
     <h2 class="mb-4">Yeni Menü Öğesi Ekle</h2>
@@ -282,10 +287,12 @@ include __DIR__ . '/../includes/navbar.php';
             </div>
 
         </div>
-        <div class="card-footer d-flex gap-2">
-            <button class="btn btn-success" type="submit">Kaydet</button>
-            <a href="list.php" class="btn btn-secondary">Geri</a>
-        </div>
+       <div class="card-footer d-flex gap-2">
+  <button class="btn btn-success" type="submit">Kaydet</button>
+  <button class="btn btn-primary" type="button" id="saveStayBtn">Ekle (Sayfada Kal)</button>
+  <a href="list.php" class="btn btn-secondary">Geri</a>
+</div>
+
     </form>
 </div>
 
@@ -418,6 +425,40 @@ include __DIR__ . '/../includes/navbar.php';
         });
     }
 })();
+
+// === AJAX "Ekle (Sayfada Kal)" ===
+$(document).on('click', '#saveStayBtn', function(e){
+    e.preventDefault();
+    const form = $('form')[0];
+    const formData = new FormData(form);
+    const btn = $(this);
+    btn.prop('disabled', true).text('Kaydediliyor...');
+
+    $.ajax({
+        url: 'create.php',
+        method: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+        success: function(res){
+            $('.alert').remove();
+            if (res && res.status === 'success') {
+                $('h2.mb-4').after('<div class="alert alert-success mt-3">✅ Ürün başarıyla eklendi. Sayfa yenilenmeden devam edebilirsiniz.</div>');
+            } else {
+                $('h2.mb-4').after('<div class="alert alert-danger mt-3">⚠️ Hata: ' + (res.message || 'Bilinmeyen hata') + '</div>');
+            }
+        },
+        error: function(xhr){
+            $('.alert').remove();
+            $('h2.mb-4').after('<div class="alert alert-danger mt-3">Sunucu hatası: ' + xhr.statusText + '</div>');
+        },
+        complete: function(){
+            btn.prop('disabled', false).text('Ekle (Sayfada Kal)');
+        }
+    });
+});
+
+
 </script>
 
 <?php include __DIR__ . '/../includes/footer.php'; ?>

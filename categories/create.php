@@ -147,9 +147,18 @@ include __DIR__ . '/../includes/navbar.php';
             </div>
 
             <div class="mb-3 mt-3">
-                <label>Resim Yükle</label>
-                <input type="file" name="image" class="form-control" accept="image/*">
-            </div>
+  <label>Resim Yükle</label>
+  <input type="file" name="image" id="imageInput" class="form-control" accept="image/*">
+  <!-- Önizleme Alanı -->
+  <div id="imagePreview" class="mt-3 position-relative d-none" style="max-width: 200px;">
+    <img id="previewImg" src="#" class="img-thumbnail" style="width:100%; height:auto;">
+    <button type="button" id="removeImage" 
+            class="btn btn-sm btn-danger position-absolute top-0 end-0" 
+            style="border-radius:50%; width:28px; height:28px; line-height:14px;">
+      &times;
+    </button>
+  </div>
+</div>
         </div>
 
         <div class="card-footer d-flex gap-2">
@@ -160,5 +169,33 @@ include __DIR__ . '/../includes/navbar.php';
     <?php endif; ?>
 </div>
 
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const input = document.getElementById('imageInput');
+  const previewDiv = document.getElementById('imagePreview');
+  const previewImg = document.getElementById('previewImg');
+  const removeBtn = document.getElementById('removeImage');
+
+  // Resim seçilince önizleme göster
+  input.addEventListener('change', function () {
+    const file = this.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        previewImg.src = e.target.result;
+        previewDiv.classList.remove('d-none');
+      };
+      reader.readAsDataURL(file);
+    }
+  });
+
+  // Çarpıya basınca resmi kaldır
+  removeBtn.addEventListener('click', function () {
+    input.value = ''; // dosya seçimini temizle
+    previewDiv.classList.add('d-none');
+    previewImg.src = '#';
+  });
+});
+</script>
 
 <?php include __DIR__ . '/../includes/footer.php'; ?>

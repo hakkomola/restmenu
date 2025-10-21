@@ -348,6 +348,33 @@ include __DIR__ . '/../includes/navbar.php';
     <form method="post" enctype="multipart/form-data" class="card shadow-sm">
         <div class="card-body">
 
+<div class="row g-3 mb-3">
+        <div class="col-md-6">
+                        <label>Ana Kategori</label>
+                        <select name="category_id" id="categorySelect" class="form-select" required>
+                            <option value="">Seçiniz</option>
+                            <?php foreach ($categories as $cat): ?>
+                                <option value="<?= $cat['CategoryID'] ?>" <?= ($cat['CategoryID'] == $currentCategoryId ? 'selected' : '') ?>>
+                                    <?= htmlspecialchars($cat['CategoryName']) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label>Alt Kategori</label>
+                        <select name="sub_category_id" id="subCategorySelect" class="form-select" required>
+                            <option value="">Seçiniz</option>
+                            <?php foreach ($subMap[$currentCategoryId] ?? [] as $sc): ?>
+                                <option value="<?= $sc['SubCategoryID'] ?>" <?= ($sc['SubCategoryID'] == $currentSubId ? 'selected' : '') ?>>
+                                    <?= htmlspecialchars($sc['SubCategoryName']) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    </div>
+    
             <!-- Dil sekmeleri -->
             <ul class="nav nav-tabs mb-3" role="tablist">
                 <?php foreach ($languages as $L): ?>
@@ -370,29 +397,7 @@ include __DIR__ . '/../includes/navbar.php';
                 <div class="tab-pane fade <?= $isDef ? 'show active' : '' ?>" id="tab-<?= htmlspecialchars($lc) ?>">
                     <!-- Kategori / Alt Kategori (Sadece bir kez gösterilecek alanlar; ama basit tutmak için her tabda aynı id'yi kullanıyoruz) -->
                     <?php if ($isDef): ?>
-                    <div class="mb-3">
-                        <label>Ana Kategori</label>
-                        <select name="category_id" id="categorySelect" class="form-select" required>
-                            <option value="">Seçiniz</option>
-                            <?php foreach ($categories as $cat): ?>
-                                <option value="<?= $cat['CategoryID'] ?>" <?= ($cat['CategoryID'] == $currentCategoryId ? 'selected' : '') ?>>
-                                    <?= htmlspecialchars($cat['CategoryName']) ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-
-                    <div class="mb-4">
-                        <label>Alt Kategori</label>
-                        <select name="sub_category_id" id="subCategorySelect" class="form-select" required>
-                            <option value="">Seçiniz</option>
-                            <?php foreach ($subMap[$currentCategoryId] ?? [] as $sc): ?>
-                                <option value="<?= $sc['SubCategoryID'] ?>" <?= ($sc['SubCategoryID'] == $currentSubId ? 'selected' : '') ?>>
-                                    <?= htmlspecialchars($sc['SubCategoryName']) ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
+                    
                     <?php endif; ?>
 
                     <div class="mb-3">
