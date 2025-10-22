@@ -1,155 +1,163 @@
 <?php
-// items/list.php
-session_start();
-require_once __DIR__ . '/../db.php';
+require_once __DIR__ . '/../includes/auth.php';
+require_login();
+if (!can('menu')) die('Erişim yetkiniz yok.');
 
-if (!isset($_SESSION['restaurant_id'])) {
-    header('Location: ../restaurants/dashboard.php');
-    exit;
+$restaurantId  = $_SESSION['restaurant_id'];
+$currentBranch = $_SESSION['current_branch'] ?? null;
+$pageTitle     = "Menü Öğeleri";
+
+// 🔹 Kategoriler (aktif şube)
+$sqlCats = "
+  SELECT c.CategoryID, c.CategoryName
+  FROM MenuCategories c
+  WHERE c.RestaurantID = ?
+";
+$params = [$restaurantId];
+if (!empty($currentBranch)) {
+  $sqlCats .= " AND (c.BranchID = ? OR c.BranchID IS NULL)";
+  $params[] = $currentBranch;
 }
+$sqlCats .= " ORDER BY c.SortOrder ASC, c.CategoryName ASC";
+$stmtCats = $pdo->prepare($sqlCats);
+$stmtCats->execute($params);
+$categories = $stmtCats->fetchAll(PDO::FETCH_ASSOC);
 
-$restaurantId = $_SESSION['restaurant_id'];
+// 🔹 Alt kategoriler (aktif şube)
+$sqlSubs = "
+  SELECT s.SubCategoryID, s.SubCategoryName, s.CategoryID
+  FROM SubCategories s
+  JOIN MenuCategories c ON s.CategoryID = c.CategoryID
+  WHERE s.RestaurantID = ?
+";
+$paramsSub = [$restaurantId];
+if (!empty($currentBranch)) {
+  $sqlSubs .= " AND (c.BranchID = ? OR c.BranchID IS NULL)";
+  $paramsSub[] = $currentBranch;
+}
+$sqlSubs .= " ORDER BY s.SortOrder ASC, s.SubCategoryName ASC";
+$stmtSubs = $pdo->prepare($sqlSubs);
+$stmtSubs->execute($paramsSub);
+$allSubcategories = $stmtSubs->fetchAll(PDO::FETCH_ASSOC);
 
-// Kategoriler
-$categories = $pdo->prepare("SELECT * FROM MenuCategories WHERE RestaurantID=? ORDER BY CategoryName ASC");
-$categories->execute([$restaurantId]);
-$categories = $categories->fetchAll(PDO::FETCH_ASSOC);
-
-// Alt kategoriler (hepsini çekiyoruz, JS ile filtrelenecek)
-$subStmt = $pdo->prepare("SELECT * FROM SubCategories WHERE RestaurantID=? ORDER BY SubCategoryName ASC");
-$subStmt->execute([$restaurantId]);
-$allSubcategories = $subStmt->fetchAll(PDO::FETCH_ASSOC);
-
-// Filtreler
-$filterCategory = $_GET['category'] ?? '';
+// 🔹 Filtreler
+$filterCategory    = $_GET['category'] ?? '';
 $filterSubCategory = $_GET['subcategory'] ?? '';
 
-// Menü öğeleri
-$sql = '
-    SELECT mi.MenuItemID,mi.RestaurantID,mi.MenuName,mi.Description,mo.Price,mi.SortOrder,mi.SubCategoryID,
-    sc.SubCategoryID, sc.SubCategoryName, mc.CategoryID, mc.CategoryName
-    FROM MenuItems mi
-    LEFT JOIN SubCategories sc ON mi.SubCategoryID = sc.SubCategoryID
-    LEFT JOIN MenuCategories mc ON sc.CategoryID = mc.CategoryID
-    LEFT JOIN MenuItemOptions mo ON mi.MenuItemID=mo.MenuItemID and IsDefault  = 1  
-    WHERE mi.RestaurantID = ?
-';
-$params = [$restaurantId];
-
+// 🔹 Menü Öğeleri
+$sqlItems = "
+  SELECT mi.MenuItemID, mi.MenuName, mi.Description, mi.SortOrder,
+         mo.Price, sc.SubCategoryName, mc.CategoryName
+  FROM MenuItems mi
+  LEFT JOIN SubCategories sc ON mi.SubCategoryID = sc.SubCategoryID
+  LEFT JOIN MenuCategories mc ON sc.CategoryID = mc.CategoryID
+  LEFT JOIN MenuItemOptions mo ON mi.MenuItemID = mo.MenuItemID AND mo.IsDefault = 1
+  WHERE mi.RestaurantID = ?
+";
+$paramsItems = [$restaurantId];
+if (!empty($currentBranch)) {
+  $sqlItems .= " AND (mi.BranchID = ? OR mi.BranchID IS NULL)";
+  $paramsItems[] = $currentBranch;
+}
 if ($filterCategory) {
-    $sql .= " AND mc.CategoryID = ?";
-    $params[] = $filterCategory;
+  $sqlItems .= " AND mc.CategoryID = ?";
+  $paramsItems[] = $filterCategory;
 }
 if ($filterSubCategory) {
-    $sql .= " AND sc.SubCategoryID = ?";
-    $params[] = $filterSubCategory;
+  $sqlItems .= " AND sc.SubCategoryID = ?";
+  $paramsItems[] = $filterSubCategory;
 }
-
-$sql .= " ORDER BY mi.SortOrder ASC, mi.MenuName ASC";
-$stmt = $pdo->prepare($sql);
-$stmt->execute($params);
+$sqlItems .= " ORDER BY mi.SortOrder ASC, mi.MenuName ASC";
+$stmt = $pdo->prepare($sqlItems);
+$stmt->execute($paramsItems);
 $menuItems = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// 🔹 HEADER ve NAVBAR dahil
-include __DIR__ . '/../includes/header.php';
-include __DIR__ . '/../includes/navbar.php';
+include __DIR__ . '/../includes/bo_header.php';
 ?>
 
-<div class="container mt-5">
-  <h2 class="mb-4">Menü Öğeleri</h2>
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+  <h4 class="fw-semibold mb-0"><?= htmlspecialchars($pageTitle) ?></h4>
 
-  <!-- Filtre Alanı -->
-  <div class="row mb-2">
-    <div class="col-md-4 mb-2">
-      <select id="categoryFilter" class="form-select">
-        <option value="">-- Ana Kategori Seç --</option>
-        <?php foreach ($categories as $cat): ?>
-          <option value="<?= $cat['CategoryID'] ?>" <?= $filterCategory == $cat['CategoryID'] ? 'selected' : '' ?>>
-            <?= htmlspecialchars($cat['CategoryName']) ?>
-          </option>
-        <?php endforeach; ?>
-      </select>
-    </div>
-    <div class="col-md-4 mb-2">
-      <select id="subcategoryFilter" class="form-select">
-        <option value="">-- Alt Kategori Seç --</option>
-      </select>
-    </div>
-  </div>
-
-  <!-- Butonlar -->
-  <div class="mb-4 d-flex flex-wrap gap-2">
-    <a href="create.php" class="btn btn-success">
-      <i class="bi bi-plus-circle"></i> Yeni
-    </a>
-    <a href="../restaurants/dashboard.php" class="btn btn-secondary">
-      <i class="bi bi-arrow-left"></i> Geri
-    </a>
-  </div>
-<!-- Toplu İşlem Alanı -->
-<div class="mb-3 d-flex flex-wrap align-items-center gap-2">
-  <select id="bulkAction" class="form-select w-auto">
-    <option value="">-- Toplu İşlem Seç --</option>
-    <option value="delete">Seçilenleri Sil</option>
-    <option value="increase_percent">Fiyatı % Arttır</option>
-    <option value="increase_fixed">Fiyata TL Ekle</option>
-  </select>
-
-  <input type="number" id="bulkValue" class="form-control w-auto" placeholder="Değer (örn. 10)" step="0.01">
-  <button id="applyBulk" class="btn btn-primary">Uygula</button>
+  <a href="create.php" class="btn btn-primary btn-sm">
+    <i class="bi bi-plus-circle"></i> Yeni
+  </a>
 </div>
- <!-- Menü Tablosu -->
+
+<!-- 🔹 Filtre Alanı -->
+<div class="row g-2 mb-4">
+  <div class="col-md-4">
+    <select id="categoryFilter" class="form-select form-select-sm">
+      <option value="">-- Ana Kategori Seç --</option>
+      <?php foreach ($categories as $cat): ?>
+        <option value="<?= $cat['CategoryID'] ?>" <?= $filterCategory == $cat['CategoryID'] ? 'selected' : '' ?>>
+          <?= htmlspecialchars($cat['CategoryName']) ?>
+        </option>
+      <?php endforeach; ?>
+    </select>
+  </div>
+  <div class="col-md-4">
+    <select id="subcategoryFilter" class="form-select form-select-sm">
+      <option value="">-- Alt Kategori Seç --</option>
+    </select>
+  </div>
+</div>
+
+<!-- 🔹 Menü Tablosu -->
 <div class="table-responsive">
-  <table class="table table-bordered align-middle" id="menu-table">
+  <table class="table table-hover align-middle">
     <thead class="table-light">
       <tr>
-        <th style="width:40px;">
-          <input type="checkbox" id="checkAll">
-        </th>
-        <th style="width:50px;">#</th>
+        <th style="width:40px;" class="text-center"><i class="bi bi-arrows-move"></i></th>
         <th>Menü Adı</th>
         <th>Kategori</th>
         <th>Alt Kategori</th>
         <th>Açıklama</th>
         <th>Fiyat</th>
-        <th style="width:200px;">İşlemler</th>
+        <th class="text-end">İşlem</th>
       </tr>
     </thead>
     <tbody id="sortable">
-      <?php foreach ($menuItems as $item): ?>
-      <tr data-id="<?= $item['MenuItemID'] ?>">
-        <td><input type="checkbox" class="row-check" value="<?= $item['MenuItemID'] ?>"></td>
-        <td class="drag-handle">☰</td>
-        <td><?= htmlspecialchars($item['MenuName']) ?></td>
-        <td><?= htmlspecialchars($item['CategoryName'] ?? '-') ?></td>
-        <td><?= htmlspecialchars($item['SubCategoryName'] ?? '-') ?></td>
-        <td><?= htmlspecialchars($item['Description']) ?></td>
-        <td><?= number_format($item['Price'], 2) ?> ₺</td>
-        <td>
-          <a href="edit.php?id=<?= $item['MenuItemID'] ?>" class="btn btn-primary btn-sm">
-            <i class="bi bi-pencil-square"></i> Düzenle
-          </a>
-          <a href="delete.php?id=<?= $item['MenuItemID'] ?>" class="btn btn-danger btn-sm"
-             onclick="return confirm('Silmek istediğinize emin misiniz?')">
-             <i class="bi bi-trash"></i> Sil
-          </a>
-        </td>
-      </tr>
-      <?php endforeach; ?>
+      <?php if ($menuItems): ?>
+        <?php foreach ($menuItems as $m): ?>
+          <tr data-id="<?= $m['MenuItemID'] ?>" style="cursor:move;">
+            <td class="text-center text-secondary"><i class="bi bi-grip-vertical" style="font-size:1.1rem;"></i></td>
+            <td><?= htmlspecialchars($m['MenuName']) ?></td>
+            <td><?= htmlspecialchars($m['CategoryName'] ?? '-') ?></td>
+            <td><?= htmlspecialchars($m['SubCategoryName'] ?? '-') ?></td>
+            <td><?= htmlspecialchars($m['Description'] ?? '-') ?></td>
+            <td><?= number_format($m['Price'] ?? 0, 2) ?> ₺</td>
+            <td class="text-end" style="white-space: nowrap;">
+              <a href="edit.php?id=<?= $m['MenuItemID'] ?>" class="btn-action" title="Düzenle">
+                <i class="bi bi-pencil"></i>
+              </a>
+              <a href="delete.php?id=<?= $m['MenuItemID'] ?>" class="btn-action"
+                 title="Sil"
+                 onclick="return confirm('Bu menü öğesini silmek istediğinize emin misiniz?')">
+                <i class="bi bi-trash"></i>
+              </a>
+            </td>
+          </tr>
+        <?php endforeach; ?>
+      <?php else: ?>
+        <tr>
+          <td colspan="7" class="text-center text-muted py-4">Hiç menü öğesi bulunamadı.</td>
+        </tr>
+      <?php endif; ?>
     </tbody>
   </table>
 </div>
 
-<script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
-<!-- SortableJS: mobil + desktop sürükle-bırak -->
-<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
-
+<!-- 🔹 JS -->
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui-touch-punch/0.2.3/jquery.ui.touch-punch.min.js"></script>
 <script>
-$(function() {
+$(function(){
   const allSubs = <?= json_encode($allSubcategories) ?>;
   const currentCat = '<?= $filterCategory ?>';
   const currentSub = '<?= $filterSubCategory ?>';
 
+  // Alt kategori listesini kategoriye göre doldur
   function populateSubcats(catId) {
     let html = '<option value="">-- Alt Kategori Seç --</option>';
     if (!catId) {
@@ -164,111 +172,32 @@ $(function() {
     $('#subcategoryFilter').html(html);
   }
 
-  // Sayfa ilk açıldığında seçili kategori varsa alt kategorileri yükle
-  if (currentCat) {
-    populateSubcats(currentCat);
-  }
+  // Sayfa ilk açılışta doğru alt kategorileri getir
+  if (currentCat) populateSubcats(currentCat);
 
-  // Ana kategori değişince alt kategorileri filtrele
-  $('#categoryFilter').on('change', function() {
+  // Ana kategori değiştiğinde alt kategorileri güncelle
+  $('#categoryFilter').on('change', function(){
     const catId = $(this).val();
     populateSubcats(catId);
   });
 
-  // Filtre değişince sayfayı yenile
-  $('#categoryFilter, #subcategoryFilter').on('change', function() {
-    const cat = $('#categoryFilter').val();
-    const sub = $('#subcategoryFilter').val();
-    window.location.href = '?category=' + cat + '&subcategory=' + sub;
-  });
-
-$(function() {
-  const allSubs = <?= json_encode($allSubcategories) ?>;
-  const currentCat = '<?= $filterCategory ?>';
-  const currentSub = '<?= $filterSubCategory ?>';
-
-  function populateSubcats(catId) {
-    let html = '<option value="">-- Alt Kategori Seç --</option>';
-    if (!catId) {
-      $('#subcategoryFilter').html(html);
-      return;
-    }
-    allSubs.forEach(sc => {
-      if (sc.CategoryID == catId) {
-        html += '<option value="' + sc.SubCategoryID + '"' + (sc.SubCategoryID == currentSub ? ' selected' : '') + '>' + sc.SubCategoryName + '</option>';
-      }
-    });
-    $('#subcategoryFilter').html(html);
-  }
-
-  if (currentCat) { populateSubcats(currentCat); }
-
-  $('#categoryFilter').on('change', function() {
-    const catId = $(this).val();
-    populateSubcats(catId);
-  });
-
-  $('#categoryFilter, #subcategoryFilter').on('change', function() {
+  // Filtre değiştiğinde sayfayı yenile
+  $('#categoryFilter, #subcategoryFilter').on('change', function(){
     const cat = $('#categoryFilter').val() || '';
     const sub = $('#subcategoryFilter').val() || '';
     window.location.href = '?category=' + cat + '&subcategory=' + sub;
   });
 
-  // --- SortableJS ile sürükle-bırak (mobil + desktop) ---
-  const el = document.getElementById('sortable');
-  if (el) {
-    new Sortable(el, {
-      handle: '.drag-handle',
-      animation: 150,
-      direction: 'vertical',
-      onEnd: function () {
-        const order = Array.from(el.children).map(function(tr){
-          return tr.getAttribute('data-id');
-        });
-        // PHP tarafı array bekliyorsa form-encoded gönder
-        fetch('update_menu_order.php', {
-          method: 'POST',
-          headers: {'Content-Type':'application/x-www-form-urlencoded'},
-          body: 'order[]=' + order.join('&order[]=')
-        }).then(r => r.text()).then(console.log);
-      }
-    });
-  }
-});
-
-});
-
-$(function() {
-
-  // ✅ Tümünü seç / kaldır
-  $('#checkAll').on('change', function() {
-    $('.row-check').prop('checked', this.checked);
-  });
-
-  // ✅ Toplu işlem butonu
-  $('#applyBulk').on('click', function() {
-    const action = $('#bulkAction').val();
-    const value = parseFloat($('#bulkValue').val()) || 0;
-    const ids = $('.row-check:checked').map(function(){ return this.value; }).get();
-
-    if (ids.length === 0) return alert('Lütfen en az bir kayıt seçin.');
-    if (!action) return alert('Lütfen bir işlem seçin.');
-
-    if (!confirm('Bu işlemi uygulamak istediğinize emin misiniz?')) return;
-
-    $.post('bulk_action.php', { action, value, ids }, function(res){
-      try {
-        const data = JSON.parse(res);
-        alert(data.message);
-        if (data.status === 'success') location.reload();
-      } catch(e) {
-        console.error(res);
-        alert('Beklenmeyen bir hata oluştu.');
-      }
-    });
-  });
-
+  // Drag-drop sıralama
+  $("#sortable").sortable({
+    placeholder: "sortable-placeholder",
+    handle: "td:first-child",
+    update: function() {
+      const order = $(this).children().map(function(){ return $(this).data('id'); }).get();
+      $.post('update_menu_order.php', { order: order });
+    }
+  }).disableSelection();
 });
 </script>
 
-<?php include __DIR__ . '/../includes/footer.php'; ?>
+<?php include __DIR__ . '/../includes/bo_footer.php'; ?>

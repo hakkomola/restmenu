@@ -1,4 +1,8 @@
 <?php
+
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
 require_once __DIR__ . '/db.php';
 
 $hash  = $_GET['hash']  ?? null;
@@ -8,88 +12,44 @@ $lang  = $_GET['lang']  ?? null;
 
 if (!$hash) die('Geçersiz link!');
 
+/* 🔹 Hash çözüm yapısı: RestaurantID + BranchID + Code + PEPPER */
 if (!defined('RESTMENU_HASH_PEPPER')) {
-    define('RESTMENU_HASH_PEPPER', 'CHANGE_ME_TO_A_LONG_RANDOM_SECRET_STRING'); // restaurant_info.php ile aynı olsun
-}
-function table_public_hash_local(int $rid, string $code): string {
-    return substr(hash('sha256', $rid . '|' . $code . '|' . RESTMENU_HASH_PEPPER), 0, 24);
-}
-
-$tableName = null;
-$foundRestaurantId = null;
-
-// Masaları tek geçişte tara ve hash ile eşle
-$__t = $pdo->query("SELECT RestaurantID, Code, Name, IsActive FROM RestaurantTables");
-while ($__r = $__t->fetch(PDO::FETCH_ASSOC)) {
-    if (hash_equals(table_public_hash_local((int)$__r['RestaurantID'], $__r['Code']), $hash)) {
-        if (empty($__r['IsActive'])) { die('Bu masa şu anda pasif durumda.'); }
-        $tableName = $__r['Name'];
-        $foundRestaurantId = (int)$__r['RestaurantID'];
-        break;
-    }
-}
-if ($foundRestaurantId === null) { die('Geçersiz bağlantı (masa bulunamadı)!'); }
-
-/* ====== YENİ: hash'ten MASA + RESTORAN bul (restaurant_info.php ile uyumlu) ====== */
-if (!defined('RESTMENU_HASH_PEPPER')) {
-    // restaurant_info.php / tables.php ile aynı sabit olmalı
     define('RESTMENU_HASH_PEPPER', 'CHANGE_ME_TO_A_LONG_RANDOM_SECRET_STRING');
 }
 
 function resolve_table_by_hash(PDO $pdo, string $hash) {
-    // Tüm masaları hafifçe dolaşarak birden fazla olası hash şemasını dener.
-    // Böylece restaurant_info.php veya QR üretimindeki şeman neyse ona uyum sağlar.
-    $stmt = $pdo->query("SELECT RestaurantID, Code, Name, IsActive FROM RestaurantTables");
+    $stmt = $pdo->query("SELECT RestaurantID, BranchID, Code, Name, IsActive FROM RestaurantTables");
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     foreach ($rows as $r) {
-        $candidates = [];
+       $calc = substr(hash('sha256', $r['RestaurantID'] . '|' . (int)$r['BranchID'] . '|' . $r['Code'] . '|' . RESTMENU_HASH_PEPPER), 0, 32);
 
-        // 1) sha256 + pepper, 24 karakter (bizim yeni önerdiğimiz şema)
-        $candidates[] = substr(hash('sha256', $r['RestaurantID'].'|'.$r['Code'].'|'.RESTMENU_HASH_PEPPER), 0, 24);
-
-        // 2) md5(RestaurantID-Code) (önceki mesajda anlattığımız alternatif)
-        $candidates[] = md5($r['RestaurantID'].'-'.$r['Code']);
-
-        // 3) md5(RestaurantIDCode) (bazı projelerde böyle kullanılmış olabilir)
-        $candidates[] = md5($r['RestaurantID'].$r['Code']);
-
-        // 4) md5(Code)
-        $candidates[] = md5($r['Code']);
-
-        // 5) ham Code (bazı eski kurulumlarda direkt code kullanılmış olabilir)
-        $candidates[] = $r['Code'];
-
-        foreach ($candidates as $cand) {
-            if (hash_equals($cand, $hash)) {
-                return $r; // doğru masa bulundu
-            }
+        if (hash_equals($calc, $hash)) {
+            return $r;
         }
     }
     return null;
 }
 
 $tableRow = resolve_table_by_hash($pdo, $hash);
-if (!$tableRow) {
-    die('Geçersiz link!');
-}
-if (!$tableRow['IsActive']) {
-    die('Bu masa şu anda pasif durumda.');
-}
+if (!$tableRow) die('Geçersiz bağlantı!');
+if (!$tableRow['IsActive']) die('Bu masa şu anda pasif durumda.');
 
-// Seçilen masanın restoranını getir
+$tableName = $tableRow['Name'];
+$branchId  = (int)$tableRow['BranchID'];
+$restaurantId = (int)$tableRow['RestaurantID'];
+
+/* 🔹 Restoran bilgileri */
 $stmt = $pdo->prepare("SELECT RestaurantID, Name, BackgroundImage, DefaultLanguage FROM Restaurants WHERE RestaurantID = ?");
-$stmt->execute([$tableRow['RestaurantID']]);
+$stmt->execute([$restaurantId]);
 $restaurant = $stmt->fetch(PDO::FETCH_ASSOC);
-if (!$restaurant) die('Geçersiz link!');
+if (!$restaurant) die('Restoran bulunamadı!');
 
-$restaurantId     = (int)$restaurant['RestaurantID'];
 $restaurantName   = $restaurant['Name'];
 $backgroundImage  = $restaurant['BackgroundImage'];
 if (!$lang) $lang = $restaurant['DefaultLanguage'] ?: 'tr';
-/* ====== /YENİ KISIM ====== */
 
-// Desteklenen diller (RestaurantLanguages + Languages)
+/* 🔹 Desteklenen diller */
 $langStmt = $pdo->prepare("
     SELECT rl.LangCode, rl.IsDefault, l.LangName
     FROM RestaurantLanguages rl
@@ -100,7 +60,7 @@ $langStmt = $pdo->prepare("
 $langStmt->execute([$restaurantId]);
 $supportedLangs = $langStmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Basit bayrak kodu eşlemesi (flagcdn için)
+/* 🔹 Bayrak kodları */
 function flag_code_from_lang($lc) {
     $lc = strtolower($lc);
     $map = [
@@ -110,14 +70,14 @@ function flag_code_from_lang($lc) {
     return $map[$lc] ?? $lc;
 }
 
-// UI metinleri (yalnızca sayfa içi küçük metinler)
+/* 🔹 UI text */
 $uiText = [
     'tr' => ['home' => 'Ana Menü'],
     'en' => ['home' => 'Main Menu'],
 ];
 $tx = $uiText[strtolower($lang)] ?? $uiText['tr'];
 
-// MenuItemTranslations FK kolon adını tespit et (MenuItemID / ItemID)
+/* 🔹 MenuItemTranslations FK tespiti */
 $itemFkCol = 'MenuItemID';
 try {
     $colCheck = $pdo->prepare("
@@ -131,66 +91,58 @@ try {
     $colCheck->execute();
     $found = $colCheck->fetchColumn();
     if ($found) $itemFkCol = $found;
-} catch (Exception $e) { /* varsayılan kalsın */ }
+} catch (Exception $e) {}
 
-// ----- VERİLERİ ÇEK -----
+/* 🔹 Menü verileri */
 if ($catId) {
-    // Kategori (çeviri ile)
+    // 🔸 Ana kategori (şube filtreli)
     $stmt = $pdo->prepare("
         SELECT c.*, COALESCE(ct.Name, c.CategoryName) AS CategoryNameDisp
         FROM MenuCategories c
-        LEFT JOIN MenuCategoryTranslations ct
-               ON ct.CategoryID = c.CategoryID AND ct.LangCode = ?
-        WHERE c.CategoryID = ? AND c.RestaurantID = ?
+        LEFT JOIN MenuCategoryTranslations ct ON ct.CategoryID = c.CategoryID AND ct.LangCode = ?
+        WHERE c.CategoryID = ? AND c.RestaurantID = ? 
+          AND ( c.BranchID = ?)
         LIMIT 1
     ");
-    $stmt->execute([$lang, $catId, $restaurantId]);
+    $stmt->execute([$lang, $catId, $restaurantId, $branchId]);
     $category = $stmt->fetch(PDO::FETCH_ASSOC);
     if (!$category) die('Kategori bulunamadı!');
 
-    // Alt kategoriler (çeviri ile)
+    // 🔸 Alt kategoriler (şube filtreli)
     $stmt = $pdo->prepare("
         SELECT sc.*, COALESCE(sct.Name, sc.SubCategoryName) AS SubCategoryNameDisp
         FROM SubCategories sc
-        LEFT JOIN SubCategoryTranslations sct
-               ON sct.SubCategoryID = sc.SubCategoryID AND sct.LangCode = ?
-        WHERE sc.CategoryID = ?
+        LEFT JOIN SubCategoryTranslations sct ON sct.SubCategoryID = sc.SubCategoryID AND sct.LangCode = ?
+        WHERE sc.CategoryID = ? AND (sc.BranchID = ?)
         ORDER BY sc.SortOrder, SubCategoryNameDisp
     ");
-    $stmt->execute([$lang, $catId]);
+    $stmt->execute([$lang, $catId, $branchId]);
     $allSubcategories = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // Alt kategori + ürünler
     $subcategories = [];
     $itemsBySub = [];
 
-    // Ürünleri dil bazlı çeviriyle çekecek statement
+    // 🔸 Ürünler (şube filtreli)
     $sqlItems = "
         SELECT mi.MenuItemID,mi.RestaurantID,mi.MenuName,mi.Description,mo.Price,mi.SortOrder,mi.SubCategoryID,
-               COALESCE(mt.Name, mi.MenuName)         AS MenuNameDisp,
+               COALESCE(mt.Name, mi.MenuName) AS MenuNameDisp,
                COALESCE(mt.Description, mi.Description) AS DescriptionDisp
         FROM MenuItems mi
-        LEFT JOIN MenuItemTranslations mt
-               ON mt.$itemFkCol = mi.MenuItemID AND mt.LangCode = ?
-        LEFT JOIN MenuItemOptions mo 
-			   ON mi.MenuItemID=mo.MenuItemID and IsDefault  = 1  
-        WHERE mi.SubCategoryID = ?
+        LEFT JOIN MenuItemTranslations mt ON mt.$itemFkCol = mi.MenuItemID AND mt.LangCode = ?
+        LEFT JOIN MenuItemOptions mo ON mi.MenuItemID=mo.MenuItemID AND IsDefault=1
+        WHERE mi.SubCategoryID = ? AND (mi.BranchID = ?)
         ORDER BY MenuNameDisp
     ";
-
-
 
     $stmtItems = $pdo->prepare($sqlItems);
 
     foreach ($allSubcategories as $sub) {
-        // Bu alt kategoriye ait ürünler
-        $stmtItems->execute([$lang, $sub['SubCategoryID']]);
+        $stmtItems->execute([$lang, $sub['SubCategoryID'], $branchId]);
         $items = $stmtItems->fetchAll(PDO::FETCH_ASSOC);
 
-        // Görselleri düzelt
         if ($items) {
             foreach ($items as $index => $item) {
-                $stmt3 = $pdo->prepare("SELECT ImageURL FROM MenuImages WHERE MenuItemID = ?");
+                $stmt3 = $pdo->prepare("SELECT ImageURL FROM MenuImages WHERE MenuItemID = ? ");
                 $stmt3->execute([$item['MenuItemID']]);
                 $images = $stmt3->fetchAll(PDO::FETCH_ASSOC);
 
@@ -208,16 +160,15 @@ if ($catId) {
     }
 
 } else {
-    // Kategori listesi (çeviri ile)
+    // 🔸 Kategori listesi (şube filtreli)
     $stmt = $pdo->prepare("
         SELECT c.*, COALESCE(ct.Name, c.CategoryName) AS CategoryNameDisp
         FROM MenuCategories c
-        LEFT JOIN MenuCategoryTranslations ct
-               ON ct.CategoryID = c.CategoryID AND ct.LangCode = ?
-        WHERE c.RestaurantID = ?
+        LEFT JOIN MenuCategoryTranslations ct ON ct.CategoryID = c.CategoryID AND ct.LangCode = ?
+        WHERE c.RestaurantID = ? AND (c.BranchID = ?)
         ORDER BY c.SortOrder, CategoryNameDisp
     ");
-    $stmt->execute([$lang, $restaurantId]);
+    $stmt->execute([$lang, $restaurantId, $branchId]);
     $categories = $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 ?>
@@ -323,20 +274,6 @@ section { scroll-margin-top: 80px; }
 <body data-bs-spy="scroll" data-bs-target="#subcategoryNav" data-bs-offset="100" tabindex="0">
 
 <div class="container py-4">
-
- <!-- AD SENSE REKLAM (Responsive) -->
-    <div class="my-4 text-center">
-        <ins class="adsbygoogle"
-             style="display:block;width:100%;max-width:728px;height:90px;margin:0 auto;"
-             data-ad-client="ca-pub-5155686402205048"
-             data-ad-slot="1234567890"
-             data-ad-format="horizontal"></ins>
-        <script>
-             (adsbygoogle = window.adsbygoogle || []).push({});
-        </script>
-    </div>
-    
-  <!-- Üst bar: Sol: başlık (ana sayfada), Sağ: dil bayrakları -->
   <div class="topbar">
     <div></div>
     <div class="lang-switch">
@@ -355,17 +292,10 @@ section { scroll-margin-top: 80px; }
           </a>
         <?php endforeach; ?>
       <?php endif; ?>
-     <!-- 
-        <br>
-        <?php if (!empty($tableName)): ?>
-        <h5 class="text-decoration-none <?= $theme === 'dark' ? 'text-light' : 'text-dark' ?>">Masa: <?= htmlspecialchars($tableName) ?></h5>
-        <?php endif; ?>
-        -->
     </div>
   </div>
 
 <?php if (!$catId): ?>
-  <!-- Ana Sayfa (Kategori listesi) -->
   <h1 class="mb-4 text-center"><?= htmlspecialchars($restaurantName) ?></h1>
 
   <div class="row g-4 category-grid">
@@ -387,7 +317,6 @@ section { scroll-margin-top: 80px; }
   </div>
 
 <?php else: ?>
-  <!-- Kategori Sayfası -->
   <div class="page-header">
     <h1><?= htmlspecialchars($restaurantName) ?></h1>
     <h3><?= htmlspecialchars($category['CategoryNameDisp']) ?></h3>
@@ -395,8 +324,7 @@ section { scroll-margin-top: 80px; }
 
   <?php if (!empty($subcategories)): ?>
   <div id="subcategoryNav" class="subcategory-menu">
-    <a href="?hash=<?= htmlspecialchars($hash) ?>&theme=<?= htmlspecialchars($theme) ?>&lang=<?= htmlspecialchars($lang) ?>"
-       class="btn <?= $theme === 'dark' ? 'btn-outline-light' : 'btn-outline-secondary' ?>">
+    <a href="?hash=<?= htmlspecialchars($hash) ?>&theme=<?= htmlspecialchars($theme) ?>&lang=<?= htmlspecialchars($lang) ?>" class="btn <?= $theme === 'dark' ? 'btn-outline-light' : 'btn-outline-secondary' ?>">
        <?= htmlspecialchars($tx['home']) ?>
     </a>
     <?php foreach ($subcategories as $sub): ?>
@@ -411,8 +339,7 @@ section { scroll-margin-top: 80px; }
       <div class="row g-4">
         <?php foreach ($itemsBySub[$sub['SubCategoryID']] as $item): ?>
           <div class="col-12 col-md-6 col-lg-4">
-            <a href="menu_item.php?id=<?= (int)$item['MenuItemID'] ?>&hash=<?= htmlspecialchars($hash) ?>&theme=<?= htmlspecialchars($theme) ?>&lang=<?= htmlspecialchars($lang) ?>"
-               class="text-decoration-none <?= $theme === 'dark' ? 'text-light' : 'text-dark' ?>">
+            <a href="menu_item.php?id=<?= (int)$item['MenuItemID'] ?>&hash=<?= htmlspecialchars($hash) ?>&theme=<?= htmlspecialchars($theme) ?>&lang=<?= htmlspecialchars($lang) ?>" class="text-decoration-none <?= $theme === 'dark' ? 'text-light' : 'text-dark' ?>">
               <div class="card h-100">
                 <?php if (!empty($item['images'])): ?>
                   <div id="carousel<?= (int)$item['MenuItemID'] ?>" class="carousel slide" data-bs-ride="carousel">
@@ -423,7 +350,8 @@ section { scroll-margin-top: 80px; }
                         </div>
                       <?php endforeach; ?>
                     </div>
-                    <?php if (count($item['images']) > 1): ?>
+                   <?php if (count($item['images']) > 1): ?>
+
                       <button class="carousel-control-prev" type="button" data-bs-target="#carousel<?= (int)$item['MenuItemID'] ?>" data-bs-slide="prev">
                         <span class="carousel-control-prev-icon" aria-hidden="true"></span>
                       </button>

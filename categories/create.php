@@ -3,14 +3,10 @@ require_once __DIR__ . '/../includes/auth.php';
 require_login();
 if (!can('menu')) die('Erişim yetkiniz yok.');
 
-$restaurantId = $_SESSION['restaurant_id'];
+$restaurantId   = $_SESSION['restaurant_id'];
+$currentBranch  = $_SESSION['current_branch'] ?? null;
 $message = '';
 $error = '';
-
-// 🔹 Şubeler
-$stmtB = $pdo->prepare("SELECT BranchID, BranchName FROM RestaurantBranches WHERE RestaurantID=? ORDER BY BranchName ASC");
-$stmtB->execute([$restaurantId]);
-$branches = $stmtB->fetchAll(PDO::FETCH_ASSOC);
 
 // 🔹 Diller
 $stmt = $pdo->prepare("
@@ -27,19 +23,20 @@ if (!$languages) {
     $error = 'Bu restoran için en az bir dil tanımlanmalı (Ayarlar > Diller).';
 }
 
+// 🔹 Varsayılan dil
 $defaultLang = null;
 foreach ($languages as $L) {
-    if ($L['IsDefault']) { $defaultLang = $L['LangCode']; break; }
+    if ($L['IsDefault']) {
+        $defaultLang = $L['LangCode'];
+        break;
+    }
 }
-if (!$defaultLang && $languages) $defaultLang = $languages[0]['LangCode'];
+if (!$defaultLang && $languages) {
+    $defaultLang = $languages[0]['LangCode'];
+}
 
 // 🔹 Form gönderimi
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error) {
-$branchId = isset($_POST['BranchID']) ? (int)$_POST['BranchID'] : 0;
-if ($branchId <= 0) {
-    $error = 'Lütfen bir şube seçiniz.';
-}
-
     $trans = $_POST['trans'] ?? [];
     $imagePath = null;
 
@@ -65,9 +62,17 @@ if ($branchId <= 0) {
         try {
             $pdo->beginTransaction();
 
-            // 🔹 Ana kategori
-            $stmt = $pdo->prepare('INSERT INTO MenuCategories (RestaurantID, BranchID, CategoryName, ImageURL) VALUES (?, ?, ?, ?)');
-            $stmt->execute([$restaurantId, $branchId, $defaultName, $imagePath]);
+            // 🔹 Ana kategori kaydı (şube sessiondan)
+            $stmt = $pdo->prepare('
+                INSERT INTO MenuCategories (RestaurantID, BranchID, CategoryName, ImageURL)
+                VALUES (?, ?, ?, ?)
+            ');
+            $stmt->execute([
+                $restaurantId,
+                $currentBranch ?: null,
+                $defaultName,
+                $imagePath
+            ]);
             $categoryId = (int)$pdo->lastInsertId();
 
             // 🔹 Çeviriler
@@ -112,18 +117,7 @@ include __DIR__ . '/../includes/bo_header.php';
   <?php if ($languages): ?>
   <form method="post" enctype="multipart/form-data" class="bo-form card p-4 shadow-sm">
 
-    <!-- Şube seçimi -->
-    <div class="mb-3">
-      <label class="form-label">Şube</label>
-      <select name="BranchID" class="form-select">
-        <option value="">Şube Seçiniz</option>
-        <?php foreach ($branches as $b): ?>
-          <option value="<?= $b['BranchID'] ?>"><?= htmlspecialchars($b['BranchName']) ?></option>
-        <?php endforeach; ?>
-      </select>
-    </div>
-
-    <!-- Dil sekmeleri -->
+    <!-- 🔹 Dil sekmeleri -->
     <ul class="nav nav-tabs mb-3" role="tablist">
       <?php foreach ($languages as $i => $L): ?>
         <li class="nav-item" role="presentation">
@@ -149,7 +143,7 @@ include __DIR__ . '/../includes/bo_header.php';
       <?php endforeach; ?>
     </div>
 
-    <!-- Görsel -->
+    <!-- 🔹 Görsel -->
     <div class="mb-3 mt-2">
       <label class="form-label">Resim Yükle</label>
       <input type="file" name="image" id="imageInput" class="form-control" accept="image/*">

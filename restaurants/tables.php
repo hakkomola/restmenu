@@ -1,178 +1,144 @@
 <?php
-session_start();
-require_once __DIR__ . '/../db.php';
+require_once __DIR__ . '/../includes/auth.php';
+require_login();
 
-if (!isset($_SESSION['restaurant_id'])) {
-    header('Location: login.php');
-    exit;
-}
-
-$restaurantId = $_SESSION['restaurant_id'];
+$restaurantId   = (int)$_SESSION['restaurant_id'];
+$currentBranch  = $_SESSION['current_branch'] ?? null;
 $message = '';
-$error = '';
+$error   = '';
 
+/* 🔹 Restoran ve tema bilgisi */
+$stmt = $pdo->prepare("SELECT ThemeMode FROM Restaurants WHERE RestaurantID = ?");
+$stmt->execute([$restaurantId]);
+$restaurant = $stmt->fetch(PDO::FETCH_ASSOC);
+$themeMode = $restaurant['ThemeMode'] ?? 'auto';
+if ($themeMode === 'auto') $themeMode = 'light'; // fallback
 
-/**
- * PUBLIC HASH ÜRETİMİ
- */
+/* 🔹 HASH FONKSİYONU (RestaurantID + BranchID + MasaCode) */
 if (!defined('RESTMENU_HASH_PEPPER')) {
     define('RESTMENU_HASH_PEPPER', 'CHANGE_ME_TO_A_LONG_RANDOM_SECRET_STRING');
 }
-function table_public_hash(int $restaurantId, string $code): string {
-    return substr(hash('sha256', $restaurantId . '|' . $code . '|' . RESTMENU_HASH_PEPPER), 0, 24);
+function table_public_hash(int $restaurantId, ?int $branchId, string $code): string {
+    $branchVal = $branchId ?? 0;
+    return substr(hash('sha256', $restaurantId . '|' . $branchVal . '|' . $code . '|' . RESTMENU_HASH_PEPPER), 0, 32);
 }
 
-// === MASA EKLEME / SİLME / TOGGLE ===
+/* 🔹 İşlemler */
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
-
-    if ($_POST['action'] === 'create') {
-        $name = trim($_POST['name'] ?? '');
-        if ($name !== '') {
-            try {
-                $code = substr(md5(uniqid(mt_rand(), true)), 0, 16);
-                $stmt = $pdo->prepare("INSERT INTO RestaurantTables (RestaurantID, Name, Code, CreatedAt) VALUES (?, ?, ?, NOW())");
-                $stmt->execute([$restaurantId, $name, $code]);
-                $message = 'Masa başarıyla eklendi.';
-            } catch (Exception $e) {
-                $msg = $e->getMessage();
-                if (strpos($msg, 'uniq_rest_table_name') !== false) {
-                    $error = 'Bu isimde bir masa zaten var.';
-                } elseif (strpos($msg, 'uniq_code') !== false) {
-                    $error = 'Kod çakışması oluştu, lütfen tekrar deneyin.';
-                } else {
-                    $error = 'Kayıt sırasında hata oluştu: ' . $msg;
-                }
-            }
-        } else {
-            $error = 'Lütfen masa adı girin.';
+    try {
+        if ($_POST['action'] === 'create') {
+            $name = trim($_POST['name'] ?? '');
+            if ($name === '') throw new Exception('Masa adı boş olamaz.');
+            $code = substr(md5(uniqid(mt_rand(), true)), 0, 16);
+            $pdo->prepare("INSERT INTO RestaurantTables (RestaurantID, BranchID, Name, Code, CreatedAt) VALUES (?, ?, ?, ?, NOW())")
+                ->execute([$restaurantId, $currentBranch, $name, $code]);
+            $message = 'Masa başarıyla eklendi.';
         }
-    }
 
-    if ($_POST['action'] === 'delete' && isset($_POST['table_id'])) {
-        $tableId = (int) $_POST['table_id'];
-        try {
-            $stmt = $pdo->prepare("DELETE FROM RestaurantTables WHERE TableID = ? AND RestaurantID = ?");
-            $stmt->execute([$tableId, $restaurantId]);
+        if ($_POST['action'] === 'toggle') {
+            $id = (int)$_POST['table_id'];
+            $pdo->prepare("UPDATE RestaurantTables SET IsActive = NOT IsActive WHERE TableID=? AND RestaurantID=?")
+                ->execute([$id, $restaurantId]);
+            $message = 'Masa durumu değiştirildi.';
+        }
+
+        if ($_POST['action'] === 'delete') {
+            $id = (int)$_POST['table_id'];
+            $pdo->prepare("DELETE FROM RestaurantTables WHERE TableID=? AND RestaurantID=?")
+                ->execute([$id, $restaurantId]);
             $message = 'Masa silindi.';
-        } catch (Exception $e) {
-            $error = 'Silme işlemi başarısız: ' . $e->getMessage();
         }
-    }
 
-    if ($_POST['action'] === 'toggle' && isset($_POST['table_id'])) {
-        $tableId = (int) $_POST['table_id'];
-        try {
-            $stmt = $pdo->prepare("UPDATE RestaurantTables SET IsActive = NOT IsActive WHERE TableID = ? AND RestaurantID = ?");
-            $stmt->execute([$tableId, $restaurantId]);
-            $message = 'Masa durumu güncellendi.';
-        } catch (Exception $e) {
-            $error = 'Durum güncellenemedi: ' . $e->getMessage();
-        }
+    } catch (Exception $e) {
+        $error = $e->getMessage();
     }
 }
 
-// === MASALARI ÇEK ===
-$stmt = $pdo->prepare("SELECT * FROM RestaurantTables WHERE RestaurantID = ? ORDER BY CreatedAt DESC");
-$stmt->execute([$restaurantId]);
+/* 🔹 Masalar */
+$query = "SELECT * FROM RestaurantTables WHERE RestaurantID = ?";
+$params = [$restaurantId];
+if ($currentBranch) {
+    $query .= " AND (BranchID IS NULL OR BranchID = ?)";
+    $params[] = $currentBranch;
+}
+$query .= " ORDER BY CreatedAt DESC";
+$stmt = $pdo->prepare($query);
+$stmt->execute($params);
 $tables = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+/* 🔹 URL bazları */
 $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
 $host   = $_SERVER['HTTP_HOST'];
-$base   = str_replace('/restaurants','', rtrim(dirname($_SERVER['SCRIPT_NAME']), '/\\'));
+$base   = str_replace('/restaurants', '', rtrim(dirname($_SERVER['SCRIPT_NAME']), '/\\'));
 
-// 🔹 HEADER ve NAVBAR dahil
-include __DIR__ . '/../includes/header.php';
-include __DIR__ . '/../includes/navbar.php';
+include __DIR__ . '/../includes/bo_header.php';
 ?>
 
-
-
-
 <div class="container py-4">
-  <h1 class="h4 mb-3">Masa Tanımları</h1>
+  <h4 class="fw-semibold mb-4">Masa Tanımları</h4>
 
-  <?php if ($message): ?>
-    <div class="alert alert-success"><?= htmlspecialchars($message) ?></div>
-  <?php elseif ($error): ?>
-    <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
-  <?php endif; ?>
+  <?php if ($message): ?><div class="alert alert-success"><?= htmlspecialchars($message) ?></div><?php endif; ?>
+  <?php if ($error): ?><div class="alert alert-danger"><?= htmlspecialchars($error) ?></div><?php endif; ?>
 
   <div class="row g-4">
     <!-- Yeni Masa -->
     <div class="col-lg-4">
       <div class="card shadow-sm">
         <div class="card-body">
-          <h2 class="h6 mb-3">Yeni Masa Ekle</h2>
+          <h6 class="mb-3 fw-semibold">Yeni Masa Ekle</h6>
           <form method="post">
             <input type="hidden" name="action" value="create">
             <div class="mb-3">
               <label class="form-label">Masa Adı</label>
-              <input type="text" name="name" class="form-control" maxlength="50" placeholder="Örn: Masa 1, Bahçe 3" required>
+              <input type="text" name="name" class="form-control" maxlength="50" placeholder="Örn: Masa 1" required>
             </div>
             <button class="btn btn-primary">Ekle</button>
           </form>
         </div>
       </div>
-      <div class="small text-muted mt-3">
-        İpucu: “Pasif Yap” ile QR’ı geçici olarak devre dışı bırakabilirsiniz.
-      </div>
+      <small class="text-muted d-block mt-3">İpucu: “Pasif Yap” seçeneği QR kodu devre dışı bırakır.</small>
     </div>
 
     <!-- Masa Listesi -->
     <div class="col-lg-8">
       <div class="card shadow-sm">
         <div class="card-body">
-          <h2 class="h6 mb-3">Tanımlı Masalar</h2>
-
-          <?php if (count($tables) > 0): ?>
+          <h6 class="mb-3 fw-semibold">Tanımlı Masalar</h6>
+          <?php if ($tables): ?>
             <div class="table-responsive">
-              <table class="table align-middle">
+              <table class="table align-middle table-bordered">
                 <thead class="table-light">
                   <tr>
                     <th>#</th>
                     <th>Masa Adı</th>
                     <th>Durum</th>
-                    <th style="width: 300px;">QR Kodlar</th>
-                    <th>İşlemler</th>
+                    <th>QR Kod</th>
+                    <th style="width:200px;">İşlemler</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <?php foreach ($tables as $i => $t):
-                      $publicHash = table_public_hash($restaurantId, $t['Code']);
-                      $linkLight  = $scheme.'://'.$host.$base.'/restaurant_info.php?hash='.urlencode($publicHash).'&theme=light';
-                      $linkDark   = $scheme.'://'.$host.$base.'/restaurant_info.php?hash='.urlencode($publicHash).'&theme=dark';
-                      $qrLight    = $scheme.'://'.$host.$base.'/generate_qr.php?hash='.urlencode($publicHash).'&theme=light';
-                      $qrDark     = $scheme.'://'.$host.$base.'/generate_qr.php?hash='.urlencode($publicHash).'&theme=dark';
+                  <?php foreach ($tables as $i => $t): 
+                    $branchParam = $t['BranchID'] ?? $currentBranch ?? 0;
+                    // 🔹 BranchID de hash içine dahil ediliyor
+                    $hash = table_public_hash($restaurantId, (int)$branchParam, $t['Code']);
+                    $link = "$scheme://$host$base/restaurant_info.php?hash=" . urlencode($hash) . "&theme=" . urlencode($themeMode);
+                    $qr   = "$scheme://$host$base/generate_qr.php?hash=" . urlencode($hash) . "&theme=" . urlencode($themeMode);
                   ?>
                   <tr>
                     <td><?= $i + 1 ?></td>
                     <td><strong><?= htmlspecialchars($t['Name']) ?></strong></td>
                     <td><?= $t['IsActive'] ? '<span class="badge bg-success">Aktif</span>' : '<span class="badge bg-secondary">Pasif</span>' ?></td>
-                    <td>
-                      <div class="row g-2">
-                        <div class="col-6">
-                          <div class="qr-box">
-                            <h6><a href="<?= htmlspecialchars($linkLight) ?>" target="_blank">Light Link</a></h6>
-                            <img src="<?= htmlspecialchars($qrLight) ?>" alt="Light QR">
-                         
-                            <div class="qr-btns">
-                              <a href="table_qr.php?hash=<?= urlencode($publicHash) ?>&theme=light" target="_blank" class="btn btn-sm btn-outline-info w-100">Yazdır</a>
-                            </div>
-                          </div>
-                        </div>
-                        <div class="col-6">
-                          <div class="qr-box">
-                            <h6><a href="<?= htmlspecialchars($linkDark) ?>" target="_blank">Dark Link</a></h6>
-                            <img src="<?= htmlspecialchars($qrDark) ?>" alt="Dark QR">
-                           
-                            <div class="qr-btns">
-                              <a href="table_qr.php?hash=<?= urlencode($publicHash) ?>&theme=dark" target="_blank" class="btn btn-sm btn-outline-dark w-100">Yazdır</a>
-                            </div>
-                          </div>
-                        </div>
+                    <td class="text-center">
+                      <a href="<?= htmlspecialchars($link) ?>" target="_blank" class="d-block mb-2">QR Görünümü</a>
+                      <img src="<?= htmlspecialchars($qr) ?>" alt="QR Kod" style="width:120px;height:120px;border:1px solid #ddd;border-radius:6px;">
+                      <div class="mt-2">
+                        <a href="table_qr.php?hash=<?= urlencode($hash) ?>&theme=<?= $themeMode ?>" 
+                           target="_blank" class="btn btn-sm btn-outline-dark w-100">
+                          Yazdır
+                        </a>
                       </div>
                     </td>
-                    <td class="table-actions text-center">
+                    <td class="text-center">
                       <form method="post" style="display:inline-block;">
                         <input type="hidden" name="action" value="toggle">
                         <input type="hidden" name="table_id" value="<?= (int)$t['TableID'] ?>">
@@ -180,7 +146,7 @@ include __DIR__ . '/../includes/navbar.php';
                           <?= $t['IsActive'] ? 'Pasif Yap' : 'Aktif Yap' ?>
                         </button>
                       </form>
-                      <form method="post" onsubmit="return confirm('Bu masayı silmek istediğinize emin misiniz?');" style="display:inline-block;">
+                      <form method="post" onsubmit="return confirm('Bu masayı silmek istiyor musunuz?');" style="display:inline-block;">
                         <input type="hidden" name="action" value="delete">
                         <input type="hidden" name="table_id" value="<?= (int)$t['TableID'] ?>">
                         <button class="btn btn-sm btn-danger">Sil</button>
@@ -194,13 +160,10 @@ include __DIR__ . '/../includes/navbar.php';
           <?php else: ?>
             <div class="text-muted">Henüz masa eklenmemiş.</div>
           <?php endif; ?>
-
         </div>
       </div>
     </div>
   </div>
 </div>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
-
-<?php include __DIR__ . '/../includes/footer.php'; ?>
+<?php include __DIR__ . '/../includes/bo_footer.php'; ?>

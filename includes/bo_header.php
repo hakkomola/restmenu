@@ -145,16 +145,14 @@ if ($currentBranch) {
       <!-- 🔹 Şube seçici -->
       <?php if (count($branches_header) > 1 || $isAdmin): ?>
         <form method="post" action="/restaurants/select_branch.php" class="d-flex align-items-center m-0">
-          <label class="me-2 small text-muted">Şube</label>
+
           <select name="branch_id" class="form-select form-select-sm" style="min-width:180px" onchange="this.form.submit()">
             <?php foreach ($branches_header as $b): ?>
               <option value="<?= $b['BranchID'] ?>" <?= ($b['BranchID']==$currentBranch)?'selected':'' ?>>
                 <?= htmlspecialchars($b['BranchName']) ?>
               </option>
             <?php endforeach; ?>
-            <?php if ($isAdmin): ?>
-              <option value="0" <?= $currentBranch ? '' : 'selected' ?>>(Tüm Şubeler)</option>
-            <?php endif; ?>
+
           </select>
         </form>
       <?php endif; ?>

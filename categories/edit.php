@@ -3,7 +3,8 @@ require_once __DIR__ . '/../includes/auth.php';
 require_login();
 if (!can('menu')) die('Erişim yetkiniz yok.');
 
-$restaurantId = $_SESSION['restaurant_id'];
+$restaurantId   = $_SESSION['restaurant_id'];
+$currentBranch  = $_SESSION['current_branch'] ?? null;
 $id = (int)($_GET['id'] ?? 0);
 if (!$id) header('Location: list.php');
 
@@ -16,10 +17,20 @@ if (!$category) {
     exit;
 }
 
-// 🔹 Şubeler
-$stmtB = $pdo->prepare("SELECT BranchID, BranchName FROM RestaurantBranches WHERE RestaurantID=? ORDER BY BranchName ASC");
-$stmtB->execute([$restaurantId]);
-$branches = $stmtB->fetchAll(PDO::FETCH_ASSOC);
+// 🔹 Orijinal ve mevcut şube adlarını al
+$origBranchName = '(Tüm Şubeler)';
+if (!empty($category['BranchID'])) {
+    $stmtB = $pdo->prepare("SELECT BranchName FROM RestaurantBranches WHERE BranchID=? AND RestaurantID=?");
+    $stmtB->execute([$category['BranchID'], $restaurantId]);
+    $origBranchName = $stmtB->fetchColumn() ?: $origBranchName;
+}
+
+$currBranchName = '(Tüm Şubeler)';
+if (!empty($currentBranch)) {
+    $stmtB = $pdo->prepare("SELECT BranchName FROM RestaurantBranches WHERE BranchID=? AND RestaurantID=?");
+    $stmtB->execute([$currentBranch, $restaurantId]);
+    $currBranchName = $stmtB->fetchColumn() ?: $currBranchName;
+}
 
 // 🔹 Diller
 $stmt = $pdo->prepare("
@@ -50,15 +61,11 @@ foreach ($trs->fetchAll(PDO::FETCH_ASSOC) as $row) {
 $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $branchId = isset($_POST['BranchID']) ? (int)$_POST['BranchID'] : 0;
     $trans = $_POST['trans'] ?? [];
     $defaultName = trim($trans[$defaultLang]['name'] ?? '');
     $deleteImage = isset($_POST['delete_image']);
 
-    // 🔸 Zorunlu kontroller
-    if ($branchId <= 0) {
-        $error = 'Lütfen bir şube seçiniz.';
-    } elseif ($defaultName === '') {
+    if ($defaultName === '') {
         $error = strtoupper($defaultLang) . ' dilinde kategori adı zorunludur.';
     }
 
@@ -96,21 +103,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             try {
                 $pdo->beginTransaction();
 
-                // 🔹 Güncelleme
+                // 🔹 Güncelleme (şube session’dan alınır)
                 if ($imageUpdated) {
                     $upd = $pdo->prepare("
                         UPDATE MenuCategories
                         SET BranchID=?, CategoryName=?, ImageURL=?
                         WHERE CategoryID=? AND RestaurantID=?
                     ");
-                    $upd->execute([$branchId, $defaultName, $imageUrl, $id, $restaurantId]);
+                    $upd->execute([$currentBranch ?: null, $defaultName, $imageUrl, $id, $restaurantId]);
                 } else {
                     $upd = $pdo->prepare("
                         UPDATE MenuCategories
                         SET BranchID=?, CategoryName=?
                         WHERE CategoryID=? AND RestaurantID=?
                     ");
-                    $upd->execute([$branchId, $defaultName, $id, $restaurantId]);
+                    $upd->execute([$currentBranch ?: null, $defaultName, $id, $restaurantId]);
                 }
 
                 // 🔹 Çeviriler
@@ -156,19 +163,12 @@ include __DIR__ . '/../includes/bo_header.php';
     <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
   <?php endif; ?>
 
-  <form method="post" enctype="multipart/form-data" class="bo-form card p-4 shadow-sm">
-
-    <!-- 🔹 Şube seçimi -->
-    <div class="mb-3">
-      <label class="form-label">Şube <span class="text-danger">*</span></label>
-      <select name="BranchID" class="form-select" required>
-        <?php foreach ($branches as $b): ?>
-          <option value="<?= $b['BranchID'] ?>" <?= $category['BranchID'] == $b['BranchID'] ? 'selected' : '' ?>>
-            <?= htmlspecialchars($b['BranchName']) ?>
-          </option>
-        <?php endforeach; ?>
-      </select>
-    </div>
+  <form method="post" enctype="multipart/form-data" class="bo-form card p-4 shadow-sm" id="categoryForm">
+    <!-- 🔹 Gizli alanlar (şube değişiklik kontrolü) -->
+    <input type="hidden" name="original_branch" value="<?= htmlspecialchars($category['BranchID'] ?? '') ?>">
+    <input type="hidden" name="current_branch" value="<?= htmlspecialchars($currentBranch ?? '') ?>">
+    <input type="hidden" name="original_branch_name" value="<?= htmlspecialchars($origBranchName) ?>">
+    <input type="hidden" name="current_branch_name" value="<?= htmlspecialchars($currBranchName) ?>">
 
     <!-- 🔹 Dil sekmeleri -->
     <ul class="nav nav-tabs mb-3" role="tablist">
@@ -228,7 +228,9 @@ document.addEventListener('DOMContentLoaded', function () {
   const previewImg = document.getElementById('previewImg');
   const removeBtn = document.getElementById('removeImage');
   const deleteFlag = document.getElementById('deleteImageFlag');
+  const form = document.getElementById('categoryForm');
 
+  // 🔹 Görsel önizleme
   input.addEventListener('change', function () {
     const file = this.files[0];
     if (file) {
@@ -247,6 +249,23 @@ document.addEventListener('DOMContentLoaded', function () {
     previewDiv.classList.add('d-none');
     previewImg.src = '#';
     deleteFlag.value = '1';
+  });
+
+  // 🔹 Şube değişiklik uyarısı (isimli)
+  form.addEventListener('submit', function (e) {
+    const origId = document.querySelector('input[name="original_branch"]').value;
+    const currId = document.querySelector('input[name="current_branch"]').value;
+    const origName = document.querySelector('input[name="original_branch_name"]').value;
+    const currName = document.querySelector('input[name="current_branch_name"]').value;
+
+    if (origId !== currId) {
+      const confirmChange = confirm(
+        `Bu kategori şu anda "${origName}" şubesine ait.\n\n` +
+        `Şube değiştirildi: ${origName} ➜ ${currName}\n\n` +
+        `Bu kategori yeni şubeye taşınacak. Emin misiniz?`
+      );
+      if (!confirmChange) e.preventDefault();
+    }
   });
 });
 </script>

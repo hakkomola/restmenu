@@ -1,24 +1,35 @@
 <?php
-// subcategories/create.php
-session_start();
-require_once __DIR__ . '/../db.php';
+require_once __DIR__ . '/../includes/auth.php';
+require_login();
+if (!can('menu')) die('Erişim yetkiniz yok.');
 
-if (!isset($_SESSION['restaurant_id'])) {
-    header('Location: ../restaurants/login.php');
-    exit;
+$restaurantId  = $_SESSION['restaurant_id'];
+$currentBranch = $_SESSION['current_branch'] ?? null;
+$pageTitle     = "Yeni Alt Kategori Oluştur";
+
+$message = '';
+$error   = '';
+
+// 🔹 Kategoriler (aktif şubeye göre)
+$sql = "
+  SELECT c.CategoryID, c.CategoryName
+  FROM MenuCategories c
+  WHERE c.RestaurantID = ?
+";
+$params = [$restaurantId];
+if (!empty($currentBranch)) {
+  $sql .= " AND (c.BranchID = ? OR c.BranchID IS NULL)";
+  $params[] = $currentBranch;
 }
+$sql .= " ORDER BY c.SortOrder ASC, c.CategoryName ASC";
+$stmt = $pdo->prepare($sql);
+$stmt->execute($params);
+$categories = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-$restaurantId = $_SESSION['restaurant_id'];
-
-// Kategoriler
-$stmtCats = $pdo->prepare("SELECT * FROM MenuCategories WHERE RestaurantID=? ORDER BY CategoryName ASC");
-$stmtCats->execute([$restaurantId]);
-$categories = $stmtCats->fetchAll();
-
-// Liste sayfasından gelen kategori ID (default seçili olacak)
+// 🔹 Seçili kategori
 $selectedCategoryId = $_GET['category_id'] ?? null;
 
-// Restoranın desteklediği diller
+// 🔹 Diller
 $stmtLang = $pdo->prepare("
     SELECT rl.LangCode, rl.IsDefault, l.LangName
     FROM RestaurantLanguages rl
@@ -29,151 +40,178 @@ $stmtLang = $pdo->prepare("
 $stmtLang->execute([$restaurantId]);
 $languages = $stmtLang->fetchAll(PDO::FETCH_ASSOC);
 
+if (!$languages) {
+  $error = 'Bu restoran için en az bir dil tanımlanmalı (Ayarlar > Diller).';
+}
+
 $defaultLang = null;
 foreach ($languages as $L) {
-    if ($L['IsDefault']) {
-        $defaultLang = $L['LangCode'];
-        break;
+  if ($L['IsDefault']) { $defaultLang = $L['LangCode']; break; }
+}
+if (!$defaultLang && $languages) $defaultLang = $languages[0]['LangCode'];
+
+// 🔹 Form gönderimi
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error) {
+  $categoryId = $_POST['category_id'] ?? null;
+  $trans = $_POST['trans'] ?? [];
+
+  $defaultName = trim($trans[$defaultLang]['name'] ?? '');
+  if (!$categoryId) $error = 'Lütfen bir kategori seçiniz.';
+  elseif ($defaultName === '') $error = strtoupper($defaultLang) . ' dilinde alt kategori adı zorunludur.';
+
+  // 🔸 Görsel yükleme
+  $imagePath = null;
+  if (!$error && !empty($_FILES['image']['name'])) {
+    $uploadsDir = __DIR__ . '/../uploads/';
+    if (!is_dir($uploadsDir)) mkdir($uploadsDir, 0777, true);
+    $fileName = time() . '_' . basename($_FILES['image']['name']);
+    $target = $uploadsDir . $fileName;
+    if (move_uploaded_file($_FILES['image']['tmp_name'], $target)) {
+      $imagePath = 'uploads/' . $fileName;
+    } else {
+      $error = 'Resim yüklenirken hata oluştu.';
     }
-}
-if (!$defaultLang && $languages) {
-    $defaultLang = $languages[0]['LangCode'];
-}
+  }
 
-$errors = [];
-$success = false;
+  if (!$error) {
+    try {
+      $pdo->beginTransaction();
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $categoryId = $_POST['category_id'] ?? null;
-    $trans = $_POST['trans'] ?? [];
+      // 🔹 Ana kayıt
+      $stmt = $pdo->prepare("
+        INSERT INTO SubCategories (RestaurantID, BranchID, CategoryID, SubCategoryName, ImageURL)
+        VALUES (?, ?, ?, ?, ?)
+      ");
+      $stmt->execute([$restaurantId, $currentBranch ?: null, $categoryId, $defaultName, $imagePath]);
+      $subId = (int)$pdo->lastInsertId();
 
-    $defaultName = trim($trans[$defaultLang]['name'] ?? '');
-    if (!$categoryId) $errors[] = 'Kategori seçmelisiniz!';
-    if ($defaultName === '') $errors[] = strtoupper($defaultLang) . ' dilinde alt kategori adı boş olamaz!';
-
-    // Resim işlemi
-    $imgPath = null;
-    if (!empty($_FILES['image']['name'])) {
-        $ext = pathinfo($_FILES['image']['name'], PATHINFO_EXTENSION);
-        $filename = 'uploads/subcategory_' . time() . '.' . $ext;
-        if (move_uploaded_file($_FILES['image']['tmp_name'], '../' . $filename)) {
-            $imgPath = $filename;
-        } else {
-            $errors[] = 'Resim yüklenemedi!';
+      // 🔹 Çeviriler
+      $ins = $pdo->prepare("
+        INSERT INTO SubCategoryTranslations (SubCategoryID, LangCode, Name, Description)
+        VALUES (:sid, :lang, :name, NULL)
+        ON DUPLICATE KEY UPDATE Name = VALUES(Name)
+      ");
+      foreach ($languages as $L) {
+        $lc = $L['LangCode'];
+        $name = trim($trans[$lc]['name'] ?? '');
+        if ($name !== '') {
+          $ins->execute([
+            ':sid'  => $subId,
+            ':lang' => $lc,
+            ':name' => $name
+          ]);
         }
+      }
+
+      $pdo->commit();
+      header('Location: list.php?category_id=' . urlencode($categoryId));
+      exit;
+    } catch (Exception $e) {
+      $pdo->rollBack();
+      $error = 'Kayıt hatası: ' . $e->getMessage();
     }
-
-    if (empty($errors)) {
-        try {
-            $pdo->beginTransaction();
-
-            // Ana tabloya ekle (fallback için)
-            $stmt = $pdo->prepare("INSERT INTO SubCategories (CategoryID, RestaurantID, SubCategoryName, ImageURL) VALUES (?, ?, ?, ?)");
-            $stmt->execute([$categoryId, $restaurantId, $defaultName, $imgPath]);
-            $subId = (int)$pdo->lastInsertId();
-
-            // Çevirileri ekle
-            $ins = $pdo->prepare("
-                INSERT INTO SubCategoryTranslations (SubCategoryID, LangCode, Name, Description)
-                VALUES (:sid, :lang, :name, NULL)
-                ON DUPLICATE KEY UPDATE Name = VALUES(Name)
-            ");
-            foreach ($languages as $L) {
-                $lc = $L['LangCode'];
-                $name = trim($trans[$lc]['name'] ?? '');
-                if ($name !== '') {
-                    $ins->execute([
-                        ':sid'  => $subId,
-                        ':lang' => $lc,
-                        ':name' => $name
-                    ]);
-                }
-            }
-
-            $pdo->commit();
-            header("Location: list.php?category_id=" . urlencode($_GET['category_id']));
-            exit;
-        } catch (Exception $e) {
-            $pdo->rollBack();
-            $errors[] = 'Kayıt hatası: ' . $e->getMessage();
-        }
-    }
+  }
 }
 
-// 🔹 HEADER ve NAVBAR dahil
-include __DIR__ . '/../includes/header.php';
-include __DIR__ . '/../includes/navbar.php';
-
-
+include __DIR__ . '/../includes/bo_header.php';
 ?>
 
+<div class="container mt-3">
+  <h4 class="fw-semibold mb-4"><?= htmlspecialchars($pageTitle) ?></h4>
 
+  <?php if ($error): ?>
+    <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
+  <?php endif; ?>
 
-<div class="container mt-5" style="max-width: 700px;">
-    <h2 class="mb-4">Yeni Alt Kategori Ekle</h2>
+  <?php if ($languages): ?>
+  <form method="post" enctype="multipart/form-data" class="bo-form card p-4 shadow-sm">
 
-    <?php if(!empty($errors)): ?>
-        <div class="alert alert-danger">
-            <?php foreach($errors as $e) echo "<div>$e</div>"; ?>
+    <!-- 🔹 Kategori seçimi -->
+    <div class="mb-3">
+      <label class="form-label">Üst Kategori</label>
+      <select name="category_id" class="form-select" required>
+        <option value="">Kategori Seçiniz</option>
+        <?php foreach ($categories as $cat): ?>
+          <option value="<?= $cat['CategoryID'] ?>" <?= $cat['CategoryID']==$selectedCategoryId?'selected':'' ?>>
+            <?= htmlspecialchars($cat['CategoryName']) ?>
+          </option>
+        <?php endforeach; ?>
+      </select>
+    </div>
+
+    <!-- 🔹 Dil sekmeleri -->
+    <ul class="nav nav-tabs mb-3" role="tablist">
+      <?php foreach ($languages as $i => $L): ?>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link <?= $L['IsDefault'] ? 'active' : '' ?>"
+                  data-bs-toggle="tab"
+                  data-bs-target="#tab-<?= htmlspecialchars($L['LangCode']) ?>"
+                  type="button" role="tab">
+            <?= strtoupper($L['LangCode']) ?> - <?= htmlspecialchars($L['LangName']) ?>
+            <?php if ($L['IsDefault']): ?><span class="badge text-bg-secondary ms-1">Varsayılan</span><?php endif; ?>
+          </button>
+        </li>
+      <?php endforeach; ?>
+    </ul>
+
+    <div class="tab-content">
+      <?php foreach ($languages as $L): $lc = $L['LangCode']; ?>
+      <div class="tab-pane fade <?= $L['IsDefault'] ? 'show active' : '' ?>" id="tab-<?= htmlspecialchars($lc) ?>">
+        <div class="mb-3">
+          <label class="form-label">Alt Kategori Adı (<?= strtoupper($lc) ?>)</label>
+          <input type="text" name="trans[<?= htmlspecialchars($lc) ?>][name]" class="form-control" <?= $L['IsDefault'] ? 'required' : '' ?>>
         </div>
-    <?php endif; ?>
+      </div>
+      <?php endforeach; ?>
+    </div>
 
-    <?php if ($languages): ?>
-    <form method="post" enctype="multipart/form-data" class="card shadow-sm">
-        <div class="card-body">
+    <!-- 🔹 Görsel yükleme -->
+    <div class="mb-3 mt-2">
+      <label class="form-label">Resim Yükle</label>
+      <input type="file" name="image" id="imageInput" class="form-control" accept="image/*">
+      <div id="imagePreview" class="mt-3 position-relative d-none" style="max-width: 200px;">
+        <img id="previewImg" src="#" class="img-thumbnail" style="width:100%; height:auto;">
+        <button type="button" id="removeImage"
+          class="btn btn-sm btn-danger position-absolute top-0 end-0"
+          style="border-radius:50%; width:28px; height:28px; line-height:14px;">
+          &times;
+        </button>
+      </div>
+    </div>
 
-            <div class="mb-3">
-                <label for="categorySelect" class="form-label">Kategori</label>
-                <select name="category_id" id="categorySelect" class="form-select" required>
-                    <option value="">-- Kategori Seçin --</option>
-                    <?php foreach($categories as $cat): ?>
-                        <option value="<?= $cat['CategoryID'] ?>" <?= ($cat['CategoryID']==$selectedCategoryId)?'selected':'' ?>>
-                            <?= htmlspecialchars($cat['CategoryName']) ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-
-            <ul class="nav nav-tabs mb-3" role="tablist">
-                <?php foreach ($languages as $L): ?>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link <?= $L['IsDefault'] ? 'active' : '' ?>"
-                                data-bs-toggle="tab"
-                                data-bs-target="#tab-<?= htmlspecialchars($L['LangCode']) ?>"
-                                type="button" role="tab">
-                            <?= strtoupper($L['LangCode']) ?> - <?= htmlspecialchars($L['LangName']) ?>
-                            <?php if ($L['IsDefault']): ?><span class="badge text-bg-secondary ms-1">Varsayılan</span><?php endif; ?>
-                        </button>
-                    </li>
-                <?php endforeach; ?>
-            </ul>
-
-            <div class="tab-content">
-                <?php foreach ($languages as $L): $lc = $L['LangCode']; ?>
-                    <div class="tab-pane fade <?= $L['IsDefault'] ? 'show active' : '' ?>" id="tab-<?= htmlspecialchars($lc) ?>">
-                        <div class="mb-3">
-                            <label for="subName_<?= htmlspecialchars($lc) ?>" class="form-label">Alt Kategori Adı (<?= strtoupper($lc) ?>)</label>
-                            <input type="text" name="trans[<?= htmlspecialchars($lc) ?>][name]" id="subName_<?= htmlspecialchars($lc) ?>"
-                                   class="form-control" <?= $L['IsDefault'] ? 'required' : '' ?>>
-                        </div>
-                    </div>
-                <?php endforeach; ?>
-            </div>
-
-            <div class="mb-3 mt-3">
-                <label for="image" class="form-label">Resim (opsiyonel)</label>
-                <input type="file" name="image" id="image" class="form-control" accept="image/*">
-            </div>
-
-        </div>
-        <div class="card-footer d-flex gap-2">
-            <button type="submit" class="btn btn-success">Kaydet</button>
-            <a href="list.php?category_id=<?= $selectedCategoryId ?>" class="btn btn-secondary">Geri</a>
-        </div>
-    </form>
-    <?php endif; ?>
+    <div class="d-flex justify-content-end">
+      <a href="list.php<?= $selectedCategoryId ? '?category_id=' . $selectedCategoryId : '' ?>" class="btn btn-outline-secondary me-2">İptal</a>
+      <button type="submit" class="btn btn-primary">Kaydet</button>
+    </div>
+  </form>
+  <?php endif; ?>
 </div>
 
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const input = document.getElementById('imageInput');
+  const previewDiv = document.getElementById('imagePreview');
+  const previewImg = document.getElementById('previewImg');
+  const removeBtn = document.getElementById('removeImage');
 
+  input.addEventListener('change', function () {
+    const file = this.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        previewImg.src = e.target.result;
+        previewDiv.classList.remove('d-none');
+      };
+      reader.readAsDataURL(file);
+    }
+  });
 
-<?php include __DIR__ . '/../includes/footer.php'; ?>
+  removeBtn.addEventListener('click', function () {
+    input.value = '';
+    previewDiv.classList.add('d-none');
+    previewImg.src = '#';
+  });
+});
+</script>
+
+<?php include __DIR__ . '/../includes/bo_footer.php'; ?>

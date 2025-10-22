@@ -7,19 +7,24 @@ $lang  = $_GET['lang']  ?? null;
 
 if (!$hash) die('Geçersiz bağlantı!');
 
-// === Aynı hash fonksiyonları (tables.php ve table_qr.php ile birebir aynı olmalı) ===
+// === Aynı hash fonksiyonu (tables.php ile birebir aynı olmalı) ===
 if (!defined('RESTMENU_HASH_PEPPER')) {
     define('RESTMENU_HASH_PEPPER', 'CHANGE_ME_TO_A_LONG_RANDOM_SECRET_STRING');
 }
 
-function find_restaurant_and_table($pdo, $hash) {
-    $stmt = $pdo->query("SELECT RestaurantID, Code, Name, IsActive FROM RestaurantTables");
+/**
+ * Verilen hash'ten Restaurant + Branch + Masa bilgilerini çözen fonksiyon
+ */
+function find_restaurant_and_table($pdo, string $hash) {
+    $stmt = $pdo->query("SELECT RestaurantID, BranchID, Code, Name, IsActive FROM RestaurantTables");
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     foreach ($rows as $r) {
-        $generated = substr(hash('sha256', $r['RestaurantID'] . '|' . $r['Code'] . '|' . RESTMENU_HASH_PEPPER), 0, 24);
-        if (hash_equals($generated, $hash)) {
-            return $r; // Bu hash'e ait masa bulundu
+        $rid  = (int)$r['RestaurantID'];
+        $bid  = (int)($r['BranchID'] ?? 0);
+        $calc = substr(hash('sha256', $rid . '|' . $bid . '|' . $r['Code'] . '|' . RESTMENU_HASH_PEPPER), 0, 32);
+        if (hash_equals($calc, $hash)) {
+            return $r; // Doğru hash bulundu
         }
     }
     return null;
@@ -41,7 +46,7 @@ $addr      = $r['Address'] ?? '';
 $phone     = $r['Phone'] ?? '';
 $email     = $r['Email'] ?? '';
 $map       = $r['MapUrl'] ?? '';
-$orderuse       = $r['OrderUse'] ?? '';
+$orderuse  = $r['OrderUse'] ?? '';
 $main      = !empty($r['MainImage']) ? ltrim($r['MainImage'], '/') : 'uploads/default_cover.jpg';
 if (!$lang) $lang = $r['DefaultLanguage'] ?: 'tr';
 
