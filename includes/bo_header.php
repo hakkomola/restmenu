@@ -110,13 +110,6 @@ if ($currentBranch) {
       </a>
       <?php endif; ?>
 
-      <?php if (can('users')): ?>
-      <a href="/user_roles/list.php" class="<?= strpos($currentURI, '/user_roles/')!==false ? 'active' : '' ?>">
-        <i class="bi bi-link-45deg"></i> <span>Kullanıcı-Rol Eşleme</span>
-      </a>
-      <?php endif; ?>
-
-
       <!-- AYARLAR -->
       <div class="text-uppercase text-secondary small px-2 mt-3 mb-2">Ayarlar</div>
 
