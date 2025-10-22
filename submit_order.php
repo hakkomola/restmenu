@@ -13,23 +13,21 @@ if (!$hash || empty($_SESSION['cart'][$hash])) {
 
 $cart = $_SESSION['cart'][$hash];
 
-// 🔍 Masa & restoran çöz
-$stmt = $pdo->prepare("SELECT RestaurantID, Code FROM RestaurantTables");
-$stmt->execute();
+/* 🔹 Masa & restoran çözümü (branch dahil hash) */
+if (!defined('RESTMENU_HASH_PEPPER')) {
+    define('RESTMENU_HASH_PEPPER', 'CHANGE_ME_TO_A_LONG_RANDOM_SECRET_STRING');
+}
+
+$stmt = $pdo->query("SELECT TableID, RestaurantID, BranchID, Code, Name, IsActive FROM RestaurantTables");
+$rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
 $table = null;
-foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $r) {
-    $variants = [
-        substr(hash('sha256', $r['RestaurantID'].'|'.$r['Code'].'|CHANGE_ME_TO_A_LONG_RANDOM_SECRET_STRING'), 0, 24),
-        md5($r['RestaurantID'].'-'.$r['Code']),
-        md5($r['RestaurantID'].$r['Code']),
-        md5($r['Code']),
-        $r['Code']
-    ];
-    foreach ($variants as $v) {
-        if (hash_equals($v, $hash)) {
-            $table = $r;
-            break 2;
-        }
+foreach ($rows as $r) {
+    $branchId = (int)($r['BranchID'] ?? 0);
+    $calc = substr(hash('sha256', $r['RestaurantID'] . '|' . $branchId . '|' . $r['Code'] . '|' . RESTMENU_HASH_PEPPER), 0, 32);
+    if (hash_equals($calc, $hash)) {
+        $table = $r;
+        break;
     }
 }
 
@@ -37,40 +35,45 @@ if (!$table) {
     echo json_encode(['status' => 'error', 'message' => 'Geçersiz masa.']);
     exit;
 }
+if (!$table['IsActive']) {
+    echo json_encode(['status' => 'error', 'message' => 'Bu masa pasif durumda.']);
+    exit;
+}
 
 try {
     $pdo->beginTransaction();
 
-    // 🧾 Orders tablosuna ekle (başlangıçta total 0)
+    // 🧾 Orders tablosuna ekle (TableID kullanıyoruz)
     $stmt = $pdo->prepare("
-        INSERT INTO Orders (RestaurantID, OrderCode, Note, CreatedAt, StatusID, TotalPrice)
-        VALUES (:rid, :code, :note, NOW(), 1, 0)
+        INSERT INTO Orders (RestaurantID, TableID, OrderCode, Note, CreatedAt, StatusID, TotalPrice)
+        VALUES (:rid, :tid, :code, :note, NOW(), 1, 0)
     ");
     $stmt->execute([
         ':rid'  => $table['RestaurantID'],
+        ':tid'  => $table['TableID'],
         ':code' => $table['Code'],
         ':note' => $note
     ]);
 
     $orderId = $pdo->lastInsertId();
 
-    // 🧮 Toplam tutarı hesaplamak için sayaç
+    // 🧮 Toplam hesaplama
     $totalPrice = 0.0;
 
-    // 🧺 OrderItems tablosuna ekle
+    // 🧺 OrderItems ekleme
     $stmtItem = $pdo->prepare("
         INSERT INTO OrderItems (OrderID, OptionID, Quantity, BasePrice, StatusID, TotalPrice)
         VALUES (:oid, :opt, :qty, :price, 1, :total)
     ");
 
     foreach ($cart as $optionId => $item) {
-        $qty = isset($item['qty']) && (int)$item['qty'] > 0 ? (int)$item['qty'] : 1;
-        $price = isset($item['price']) ? (float)$item['price'] : 0.00;
+        $qty = max(1, (int)($item['qty'] ?? 0));
+        $price = (float)($item['price'] ?? 0);
         $lineTotal = $qty * $price;
 
         $stmtItem->execute([
             ':oid'   => $orderId,
-            ':opt'   => $optionId, // ✅ OptionID artık buradan geliyor
+            ':opt'   => $optionId,
             ':qty'   => $qty,
             ':price' => $price,
             ':total' => $lineTotal
@@ -79,12 +82,9 @@ try {
         $totalPrice += $lineTotal;
     }
 
-    // 💰 Orders tablosuna toplam fiyatı güncelle
+    // 💰 Orders toplam güncelle
     $stmtUpd = $pdo->prepare("UPDATE Orders SET TotalPrice = :total WHERE OrderID = :oid");
-    $stmtUpd->execute([
-        ':total' => $totalPrice,
-        ':oid'   => $orderId
-    ]);
+    $stmtUpd->execute([':total' => $totalPrice, ':oid' => $orderId]);
 
     $pdo->commit();
 
@@ -98,5 +98,5 @@ try {
     ]);
 } catch (Exception $e) {
     $pdo->rollBack();
-    echo json_encode(['status' => 'error', 'message' => 'Kayıt hatası: '.$e->getMessage()]);
+    echo json_encode(['status' => 'error', 'message' => 'Kayıt hatası: ' . $e->getMessage()]);
 }

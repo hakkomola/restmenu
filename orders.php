@@ -6,9 +6,10 @@ if (!isset($_SESSION['last_page'][$_GET['hash'] ?? ''])) {
 
 require_once __DIR__ . '/db.php';
 
-$theme = $_GET['theme'] ?? 'light';
-$lang  = $_GET['lang'] ?? 'tr';
-$hash  = $_GET['hash'] ?? null;
+$theme  = $_GET['theme'] ?? 'light';
+$lang   = $_GET['lang'] ?? 'tr';
+$hash   = $_GET['hash'] ?? null;
+$branch = $_GET['branch'] ?? null; // 🔹 şube desteği
 if (!$hash) die('Geçersiz bağlantı!');
 
 /* ===== HASH çözümü ===== */
@@ -20,36 +21,30 @@ try {
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
     // Masa tespiti
-    $q = $pdo->query("SELECT RestaurantID, Code, Name FROM RestaurantTables");
+    $q = $pdo->query("SELECT RestaurantID, BranchID, Code, Name FROM RestaurantTables");
     $table = null;
     foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $r) {
-        $variants = [
-            substr(hash('sha256', $r['RestaurantID'].'|'.$r['Code'].'|'.RESTMENU_HASH_PEPPER), 0, 24),
-            md5($r['RestaurantID'].'-'.$r['Code']),
-            md5($r['RestaurantID'].$r['Code']),
-            md5($r['Code']),
-            $r['Code']
-        ];
-        foreach ($variants as $v) {
-            if (hash_equals($v, $hash)) { $table = $r; break 2; }
+        $calc = substr(hash('sha256', $r['RestaurantID'].'|'.(int)$r['BranchID'].'|'.$r['Code'].'|'.RESTMENU_HASH_PEPPER), 0, 32);
+        if (hash_equals($calc, $hash)) {
+            $table = $r;
+            break;
         }
     }
-    if (!$table) {
-        die('Geçersiz masa!');
-    }
+    if (!$table) die('Geçersiz masa!');
 
-    $rid  = (int)$table['RestaurantID'];
-    $code = $table['Code'];
+    $rid     = (int)$table['RestaurantID'];
+    $branch  = (int)$table['BranchID'];
+    $code    = $table['Code'];
 
-    // Siparişleri çek (başlıklarda order durumu için de çeviri alalım)
+    // Siparişleri çek
     $stmt = $pdo->prepare("
-        SELECT o.*,
-               ost.Name AS OrderStatusName
+        SELECT o.*, ost.Name AS OrderStatusName
         FROM Orders o
         LEFT JOIN OrderStatusTranslations ost
                ON ost.StatusID = o.StatusID AND ost.LangCode = :lang
-        WHERE o.RestaurantID = :rid AND o.OrderCode = :code
-        AND DATE(o.CreatedAt) = CURDATE()
+        WHERE o.RestaurantID = :rid
+          AND o.OrderCode = :code
+          AND DATE(o.CreatedAt) = CURDATE()
         ORDER BY o.CreatedAt DESC, o.OrderID DESC
     ");
     $stmt->execute([':lang' => $lang, ':rid' => $rid, ':code' => $code]);
@@ -74,25 +69,24 @@ try {
   <div class="d-flex justify-content-between align-items-center mb-4">
     <h4 class="fw-bold mb-0">🧾 Siparişlerim</h4>
 <?php
-// 🔹 Menüye Dön linkini oluştur (cat varsa ekle)
-$catPart = isset($_GET['cat']) ? '&cat='.(int)$_GET['cat'] : '';
+// 🔹 Menüye Dön linkini oluştur (cat ve branch varsa ekle)
+$catPart    = isset($_GET['cat']) ? '&cat='.(int)$_GET['cat'] : '';
+$branchPart = $branch ? '&branch='.(int)$branch : '';
 $backUrl = "menu_order.php?hash=" . urlencode($_GET['hash'] ?? '') .
             "&theme=" . urlencode($_GET['theme'] ?? 'light') .
             "&lang=" . urlencode($_GET['lang'] ?? 'tr') .
-            $catPart;
+            $branchPart . $catPart;
 ?>
-
 <a href="<?= htmlspecialchars($backUrl) ?>" class="btn btn-outline-secondary btn-sm">
   Menüye Dön
 </a>
-
   </div>
 
   <?php if (empty($orders)): ?>
     <div class="alert alert-info">Henüz bu masa için bir sipariş bulunamadı.</div>
   <?php else: ?>
     <?php
-    // Her sipariş için kalemleri çekecek hazırlık
+    // Her siparişin kalemleri
     $stmtItems = $pdo->prepare("
         SELECT
           oi.OrderItemID, oi.OptionID, oi.Quantity, oi.BasePrice, oi.TotalPrice, oi.StatusID,
@@ -127,8 +121,6 @@ $backUrl = "menu_order.php?hash=" . urlencode($_GET['hash'] ?? '') .
         </div>
 
         <div class="card-body p-3">
-
-
           <?php if (empty($items)): ?>
             <div class="text-muted small">Bu siparişin kalemleri bulunamadı.</div>
           <?php else: ?>
@@ -149,16 +141,17 @@ $backUrl = "menu_order.php?hash=" . urlencode($_GET['hash'] ?? '') .
                 </div>
               </div>
             <?php endforeach; ?>
+
             <div class="text mt-3 d-flex justify-content-between align-items-start">
-  <?php if (!empty($order['Note'])): ?>
-    <div class="alert alert-warning py-2 px-3 mb-0 flex-grow-1 me-3" style="max-width:70%;">
-      <strong>📝 Not:</strong> <?= nl2br(htmlspecialchars($order['Note'])) ?>
-    </div>
-  <?php endif; ?>
-  <div class="text-end flex-shrink-0">
-    <strong>Toplam: ₺<?= number_format((float)$order['TotalPrice'], 2, ',', '.') ?></strong>
-  </div>
-</div>
+              <?php if (!empty($order['Note'])): ?>
+                <div class="alert alert-warning py-2 px-3 mb-0 flex-grow-1 me-3" style="max-width:70%;">
+                  <strong>📝 Not:</strong> <?= nl2br(htmlspecialchars($order['Note'])) ?>
+                </div>
+              <?php endif; ?>
+              <div class="text-end flex-shrink-0">
+                <strong>Toplam: ₺<?= number_format((float)$order['TotalPrice'], 2, ',', '.') ?></strong>
+              </div>
+            </div>
           <?php endif; ?>
         </div>
       </div>

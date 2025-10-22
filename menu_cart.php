@@ -5,18 +5,47 @@ if (!isset($_SESSION['last_page'][$_GET['hash'] ?? ''])) {
     $_SESSION['last_page'][$_GET['hash'] ?? ''] = $_SERVER['HTTP_REFERER'] ?? '';
 }
 
-
 require_once __DIR__ . '/db.php';
 
-$theme = $_GET['theme'] ?? 'light';
-$lang  = $_GET['lang'] ?? 'tr';
-$hash  = $_GET['hash'] ?? null;
+$theme  = $_GET['theme'] ?? 'light';
+$lang   = $_GET['lang'] ?? 'tr';
+$hash   = $_GET['hash'] ?? null;
+$branch = $_GET['branch'] ?? null; // 🔹 branch desteği
 if (!$hash) die('Geçersiz bağlantı!');
 
+/* =====================
+   HASH ÇÖZÜMÜ
+===================== */
+if (!defined('RESTMENU_HASH_PEPPER')) {
+    define('RESTMENU_HASH_PEPPER', 'CHANGE_ME_TO_A_LONG_RANDOM_SECRET_STRING');
+}
+
+function resolve_table(PDO $pdo, string $hash) {
+    $rows = $pdo->query("SELECT RestaurantID, BranchID, Code, Name, IsActive FROM RestaurantTables")->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($rows as $r) {
+        $branchId = (int)($r['BranchID'] ?? 0);
+        $calc = substr(hash('sha256', $r['RestaurantID'].'|'.$branchId.'|'.$r['Code'].'|'.RESTMENU_HASH_PEPPER), 0, 32);
+        if (hash_equals($calc, $hash)) {
+            return $r;
+        }
+    }
+    return null;
+}
+
+$table = resolve_table($pdo, $hash);
+if (!$table || !$table['IsActive']) die('Geçersiz veya pasif masa!');
+
+$restaurantId = (int)$table['RestaurantID'];
+$branchId     = (int)$table['BranchID'];
+$tableName    = $table['Name'];
+
+/* =====================
+   SEPET VERİLERİ
+===================== */
 $cart = $_SESSION['cart'][$hash] ?? [];
 $total = 0;
 foreach ($cart as $key => $item) {
-    $qty = (int)($item['qty'] ?? 0);
+    $qty   = (int)($item['qty'] ?? 0);
     $price = (float)($item['price'] ?? 0);
     $total += $price * $qty;
 }
@@ -37,19 +66,17 @@ foreach ($cart as $key => $item) {
   <div class="d-flex justify-content-between align-items-center mb-4">
     <h4 class="fw-bold mb-0">🛒 Sepetiniz</h4>
 <?php
-// 🔹 Menüye Dön linkini oluştur (cat varsa ekle)
-$catPart = isset($_GET['cat']) ? '&cat='.(int)$_GET['cat'] : '';
+// 🔹 Menüye Dön linkini oluştur (cat ve branch varsa ekle)
+$catPart    = isset($_GET['cat']) ? '&cat='.(int)$_GET['cat'] : '';
+$branchPart = isset($_GET['branch']) ? '&branch='.(int)$_GET['branch'] : '';
 $backUrl = "menu_order.php?hash=" . urlencode($_GET['hash'] ?? '') .
             "&theme=" . urlencode($_GET['theme'] ?? 'light') .
             "&lang=" . urlencode($_GET['lang'] ?? 'tr') .
-            $catPart;
+            $branchPart . $catPart;
 ?>
-
 <a href="<?= htmlspecialchars($backUrl) ?>" class="btn btn-outline-secondary btn-sm ms-3">
   Menüye Dön
 </a>
-
-
   </div>
 
   <?php if (empty($cart)): ?>
@@ -57,6 +84,7 @@ $backUrl = "menu_order.php?hash=" . urlencode($_GET['hash'] ?? '') .
   <?php else: ?>
     <form id="orderForm" action="submit_order.php" method="POST">
       <input type="hidden" name="hash" value="<?= htmlspecialchars($hash) ?>">
+      <input type="hidden" name="branch" value="<?= htmlspecialchars($branchId) ?>">
 
       <?php foreach ($cart as $optionId => $item): ?>
         <?php
@@ -173,7 +201,7 @@ document.addEventListener('click', (e) => {
   }
 });
 
-// 🟢 Sipariş Gönderme (popup + yönlendirme)
+// 🟢 Sipariş Gönderme
 document.addEventListener('DOMContentLoaded', () => {
   const form = document.getElementById('orderForm');
   if (!form) return;
@@ -208,15 +236,12 @@ function showOrderSuccess(orderId, total) {
   `;
   document.body.appendChild(popup);
 
-  // ✅ Tamam butonuna basılınca menüye dön
   const okBtn = popup.querySelector('#okBtn');
   okBtn.addEventListener('click', () => {
     popup.remove();
     window.location.href = `orders.php?hash=<?= urlencode($hash) ?>&theme=<?= urlencode($theme) ?>&lang=<?= urlencode($lang) ?>`;
-
   });
 }
-
 </script>
 </body>
 </html>
