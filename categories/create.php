@@ -1,18 +1,18 @@
 <?php
-// categories/create.php
-session_start();
-require_once __DIR__ . '/../db.php';
-
-if (!isset($_SESSION['restaurant_id'])) {
-    header('Location: ../restaurants/login.php');
-    exit;
-}
+require_once __DIR__ . '/../includes/auth.php';
+require_login();
+if (!can('menu')) die('Erişim yetkiniz yok.');
 
 $restaurantId = $_SESSION['restaurant_id'];
 $message = '';
 $error = '';
 
-/** Restoranın desteklediği diller */
+// 🔹 Şubeler
+$stmtB = $pdo->prepare("SELECT BranchID, BranchName FROM RestaurantBranches WHERE RestaurantID=? ORDER BY BranchName ASC");
+$stmtB->execute([$restaurantId]);
+$branches = $stmtB->fetchAll(PDO::FETCH_ASSOC);
+
+// 🔹 Diller
 $stmt = $pdo->prepare("
     SELECT rl.LangCode, rl.IsDefault, l.LangName
     FROM RestaurantLanguages rl
@@ -29,33 +29,27 @@ if (!$languages) {
 
 $defaultLang = null;
 foreach ($languages as $L) {
-    if ($L['IsDefault']) {
-        $defaultLang = $L['LangCode'];
-        break;
-    }
+    if ($L['IsDefault']) { $defaultLang = $L['LangCode']; break; }
 }
-if (!$defaultLang && $languages) {
-    $defaultLang = $languages[0]['LangCode'];
-}
+if (!$defaultLang && $languages) $defaultLang = $languages[0]['LangCode'];
 
+// 🔹 Form gönderimi
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error) {
+    $branchId = $_POST['BranchID'] !== '' ? (int)$_POST['BranchID'] : null;
     $trans = $_POST['trans'] ?? [];
     $imagePath = null;
 
-    // Varsayılan dilde ad zorunlu
     $defaultName = trim($trans[$defaultLang]['name'] ?? '');
     if ($defaultName === '') {
         $error = strtoupper($defaultLang) . ' dilinde kategori adı zorunludur.';
     }
 
-    // Görsel yükleme işlemi
+    // 🔸 Görsel yükleme
     if (!$error && !empty($_FILES['image']['name'])) {
         $uploadsDir = __DIR__ . '/../uploads/';
         if (!is_dir($uploadsDir)) mkdir($uploadsDir, 0777, true);
-
         $fileName = time() . '_' . basename($_FILES['image']['name']);
         $target = $uploadsDir . $fileName;
-
         if (move_uploaded_file($_FILES['image']['tmp_name'], $target)) {
             $imagePath = 'uploads/' . $fileName;
         } else {
@@ -67,24 +61,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error) {
         try {
             $pdo->beginTransaction();
 
-            // Ana kategori (fallback için CategoryName hala tutulur)
-            $stmt = $pdo->prepare('INSERT INTO MenuCategories (RestaurantID, CategoryName, ImageURL) VALUES (?, ?, ?)');
-            $stmt->execute([$restaurantId, $defaultName, $imagePath]);
+            // 🔹 Ana kategori
+            $stmt = $pdo->prepare('INSERT INTO MenuCategories (RestaurantID, BranchID, CategoryName, ImageURL) VALUES (?, ?, ?, ?)');
+            $stmt->execute([$restaurantId, $branchId, $defaultName, $imagePath]);
             $categoryId = (int)$pdo->lastInsertId();
 
-            // Çevirileri kaydet
+            // 🔹 Çeviriler
             $ins = $pdo->prepare("
                 INSERT INTO MenuCategoryTranslations (CategoryID, LangCode, Name, Description)
                 VALUES (:cid, :lang, :name, NULL)
                 ON DUPLICATE KEY UPDATE Name = VALUES(Name)
             ");
             foreach ($languages as $L) {
-                $langCode = $L['LangCode'];
-                $name = trim($trans[$langCode]['name'] ?? '');
+                $lc = $L['LangCode'];
+                $name = trim($trans[$lc]['name'] ?? '');
                 if ($name !== '') {
                     $ins->execute([
-                        ':cid'  => $categoryId,
-                        ':lang' => $langCode,
+                        ':cid' => $categoryId,
+                        ':lang' => $lc,
                         ':name' => $name
                     ]);
                 }
@@ -99,74 +93,78 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error) {
         }
     }
 }
-// 🔹 HEADER ve NAVBAR dahil
-include __DIR__ . '/../includes/header.php';
-include __DIR__ . '/../includes/navbar.php';
+
+$pageTitle = "Yeni Kategori Oluştur";
+include __DIR__ . '/../includes/bo_header.php';
 ?>
 
+<div class="container mt-3">
+  <h4 class="fw-semibold mb-4"><?= htmlspecialchars($pageTitle) ?></h4>
 
+  <?php if ($error): ?>
+    <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
+  <?php endif; ?>
 
+  <?php if ($languages): ?>
+  <form method="post" enctype="multipart/form-data" class="bo-form card p-4 shadow-sm">
 
-<div class="container mt-5" style="max-width: 600px;">
-    <h2 class="mb-4">Yeni Kategori Ekle</h2>
+    <!-- Şube seçimi -->
+    <div class="mb-3">
+      <label class="form-label">Şube</label>
+      <select name="BranchID" class="form-select">
+        <option value="">Tüm Şubeler</option>
+        <?php foreach ($branches as $b): ?>
+          <option value="<?= $b['BranchID'] ?>"><?= htmlspecialchars($b['BranchName']) ?></option>
+        <?php endforeach; ?>
+      </select>
+    </div>
 
-    <?php if ($message): ?>
-        <div class="alert alert-success"><?= htmlspecialchars($message) ?></div>
-    <?php endif; ?>
+    <!-- Dil sekmeleri -->
+    <ul class="nav nav-tabs mb-3" role="tablist">
+      <?php foreach ($languages as $i => $L): ?>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link <?= $L['IsDefault'] ? 'active' : '' ?>"
+                  data-bs-toggle="tab"
+                  data-bs-target="#tab-<?= htmlspecialchars($L['LangCode']) ?>"
+                  type="button" role="tab">
+            <?= strtoupper($L['LangCode']) ?> - <?= htmlspecialchars($L['LangName']) ?>
+            <?php if ($L['IsDefault']): ?><span class="badge text-bg-secondary ms-1">Varsayılan</span><?php endif; ?>
+          </button>
+        </li>
+      <?php endforeach; ?>
+    </ul>
 
-    <?php if ($error): ?>
-        <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
-    <?php endif; ?>
-
-    <?php if ($languages): ?>
-    <form action="create.php" method="post" enctype="multipart/form-data" class="card shadow-sm">
-        <div class="card-body">
-            <ul class="nav nav-tabs mb-3" role="tablist">
-                <?php foreach ($languages as $i => $L): ?>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link <?= $L['IsDefault'] ? 'active' : '' ?>"
-                                data-bs-toggle="tab" data-bs-target="#tab-<?= htmlspecialchars($L['LangCode']) ?>"
-                                type="button" role="tab">
-                            <?= strtoupper($L['LangCode']) ?> - <?= htmlspecialchars($L['LangName']) ?>
-                            <?php if ($L['IsDefault']): ?><span class="badge text-bg-secondary ms-1">Varsayılan</span><?php endif; ?>
-                        </button>
-                    </li>
-                <?php endforeach; ?>
-            </ul>
-
-            <div class="tab-content">
-                <?php foreach ($languages as $L): $lc = $L['LangCode']; ?>
-                    <div class="tab-pane fade <?= $L['IsDefault'] ? 'show active' : '' ?>" id="tab-<?= htmlspecialchars($lc) ?>">
-                        <div class="mb-3">
-                            <label>Kategori Adı (<?= strtoupper($lc) ?>)</label>
-                            <input type="text" name="trans[<?= htmlspecialchars($lc) ?>][name]"
-                                   class="form-control" <?= $L['IsDefault'] ? 'required' : '' ?>>
-                        </div>
-                    </div>
-                <?php endforeach; ?>
-            </div>
-
-            <div class="mb-3 mt-3">
-  <label>Resim Yükle</label>
-  <input type="file" name="image" id="imageInput" class="form-control" accept="image/*">
-  <!-- Önizleme Alanı -->
-  <div id="imagePreview" class="mt-3 position-relative d-none" style="max-width: 200px;">
-    <img id="previewImg" src="#" class="img-thumbnail" style="width:100%; height:auto;">
-    <button type="button" id="removeImage" 
-            class="btn btn-sm btn-danger position-absolute top-0 end-0" 
-            style="border-radius:50%; width:28px; height:28px; line-height:14px;">
-      &times;
-    </button>
-  </div>
-</div>
+    <div class="tab-content">
+      <?php foreach ($languages as $L): $lc = $L['LangCode']; ?>
+      <div class="tab-pane fade <?= $L['IsDefault'] ? 'show active' : '' ?>" id="tab-<?= htmlspecialchars($lc) ?>">
+        <div class="mb-3">
+          <label class="form-label">Kategori Adı (<?= strtoupper($lc) ?>)</label>
+          <input type="text" name="trans[<?= htmlspecialchars($lc) ?>][name]" class="form-control" <?= $L['IsDefault'] ? 'required' : '' ?>>
         </div>
+      </div>
+      <?php endforeach; ?>
+    </div>
 
-        <div class="card-footer d-flex gap-2">
-            <button class="btn btn-success">Kaydet</button>
-            <a href="list.php" class="btn btn-secondary">Geri</a>
-        </div>
-    </form>
-    <?php endif; ?>
+    <!-- Görsel -->
+    <div class="mb-3 mt-2">
+      <label class="form-label">Resim Yükle</label>
+      <input type="file" name="image" id="imageInput" class="form-control" accept="image/*">
+      <div id="imagePreview" class="mt-3 position-relative d-none" style="max-width: 200px;">
+        <img id="previewImg" src="#" class="img-thumbnail" style="width:100%; height:auto;">
+        <button type="button" id="removeImage"
+          class="btn btn-sm btn-danger position-absolute top-0 end-0"
+          style="border-radius:50%; width:28px; height:28px; line-height:14px;">
+          &times;
+        </button>
+      </div>
+    </div>
+
+    <div class="d-flex justify-content-end">
+      <a href="list.php" class="btn btn-outline-secondary me-2">İptal</a>
+      <button type="submit" class="btn btn-primary">Kaydet</button>
+    </div>
+  </form>
+  <?php endif; ?>
 </div>
 
 <script>
@@ -176,7 +174,6 @@ document.addEventListener('DOMContentLoaded', function () {
   const previewImg = document.getElementById('previewImg');
   const removeBtn = document.getElementById('removeImage');
 
-  // Resim seçilince önizleme göster
   input.addEventListener('change', function () {
     const file = this.files[0];
     if (file) {
@@ -189,13 +186,12 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   });
 
-  // Çarpıya basınca resmi kaldır
   removeBtn.addEventListener('click', function () {
-    input.value = ''; // dosya seçimini temizle
+    input.value = '';
     previewDiv.classList.add('d-none');
     previewImg.src = '#';
   });
 });
 </script>
 
-<?php include __DIR__ . '/../includes/footer.php'; ?>
+<?php include __DIR__ . '/../includes/bo_footer.php'; ?>

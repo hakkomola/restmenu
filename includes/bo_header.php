@@ -8,20 +8,20 @@ require_login();
 $restaurantId   = $_SESSION['restaurant_id'];
 $restaurantName = $_SESSION['restaurant_name'] ?? 'Restoran';
 $currentBranch  = $_SESSION['current_branch'] ?? null;
-$branches_header       = $_SESSION['branches'] ?? [];
+$branches_header = $_SESSION['branches'] ?? [];
 $isAdmin        = !empty($_SESSION['is_admin']);
 $roleName       = $_SESSION['role_name'] ?? 'Kullanıcı';
 
-// aktif link için yardımcı
+// aktif link
 $currentFile = basename($_SERVER['PHP_SELF']);
 $currentURI  = $_SERVER['REQUEST_URI'] ?? '';
 
 // aktif şube adı
 $branchName = '(Tüm Şubeler)';
 if ($currentBranch) {
-    $stmt = $pdo->prepare("SELECT BranchName FROM RestaurantBranches WHERE BranchID=? AND RestaurantID=?");
-    $stmt->execute([$currentBranch, $restaurantId]);
-    $branchName = $stmt->fetchColumn() ?: $branchName;
+  $stmt = $pdo->prepare("SELECT BranchName FROM RestaurantBranches WHERE BranchID=? AND RestaurantID=?");
+  $stmt->execute([$currentBranch, $restaurantId]);
+  $branchName = $stmt->fetchColumn() ?: $branchName;
 }
 ?>
 <!DOCTYPE html>
@@ -36,6 +36,7 @@ if ($currentBranch) {
 </head>
 <body>
 <div class="bo-shell">
+
   <!-- SIDEBAR -->
   <aside class="bo-sidebar">
     <a class="bo-brand" href="/restaurants/dashboard.php">
@@ -43,7 +44,6 @@ if ($currentBranch) {
     </a>
 
     <div class="bo-menu">
-      <!-- GENEL -->
       <div class="text-uppercase text-secondary small px-2 mb-2">Genel</div>
 
       <a href="/restaurants/dashboard.php" class="<?= $currentFile==='dashboard.php' ? 'active' : '' ?>">
@@ -62,8 +62,6 @@ if ($currentBranch) {
       </a>
       <?php endif; ?>
 
-
-      <!-- MENÜ YÖNETİMİ -->
       <?php if (can('menu')): ?>
       <div class="text-uppercase text-secondary small px-2 mt-3 mb-2">Menü Yönetimi</div>
 
@@ -88,8 +86,6 @@ if ($currentBranch) {
       </a>
       <?php endif; ?>
 
-
-      <!-- YÖNETİM -->
       <div class="text-uppercase text-secondary small px-2 mt-3 mb-2">Yönetim</div>
 
       <?php if (can('branches')): ?>
@@ -110,7 +106,6 @@ if ($currentBranch) {
       </a>
       <?php endif; ?>
 
-      <!-- AYARLAR -->
       <div class="text-uppercase text-secondary small px-2 mt-3 mb-2">Ayarlar</div>
 
       <a href="/restaurants/profile.php" class="<?= $currentFile==='profile.php' ? 'active' : '' ?>">
@@ -122,8 +117,6 @@ if ($currentBranch) {
       </a>
     </div>
 
-
-    <!-- FOOTER -->
     <div class="bo-footer">
       <div class="small"><i class="bi bi-person-circle me-1"></i><?= htmlspecialchars($roleName) ?></div>
       <div class="small text-secondary"><?= htmlspecialchars($restaurantName) ?></div>
@@ -136,27 +129,34 @@ if ($currentBranch) {
     </div>
   </aside>
 
-
   <!-- CONTENT -->
   <div class="bo-content">
-    <div class="bo-topbar">
-      <div class="fw-semibold"><?= isset($pageTitle) ? htmlspecialchars($pageTitle) : 'Backoffice' ?></div>
+    <div class="bo-topbar d-flex justify-content-between align-items-center">
+      <!-- 🔹 Hamburger menü -->
+      <button class="btn btn-link text-dark d-lg-none" id="sidebarToggle" type="button">
+        <i class="bi bi-list" style="font-size: 1.5rem;"></i>
+      </button>
 
-      <!-- Şube seçici: sadece çok şubeli kullanıcı veya admin -->
+      <!-- 🔹 Sayfa başlığı -->
+      <div class="fw-semibold flex-grow-1">
+        <?= isset($pageTitle) ? htmlspecialchars($pageTitle) : 'Backoffice' ?>
+      </div>
+
+      <!-- 🔹 Şube seçici -->
       <?php if (count($branches_header) > 1 || $isAdmin): ?>
-      <form method="post" action="/restaurants/select_branch.php" class="d-flex align-items-center m-0">
-        <label class="me-2 small text-muted">Şube</label>
-        <select name="branch_id" class="form-select form-select-sm" style="min-width:180px" onchange="this.form.submit()">
-          <?php foreach ($branches_header as $b): ?>
-            <option value="<?= $b['BranchID'] ?>" <?= ($b['BranchID']==$currentBranch)?'selected':'' ?>>
-              <?= htmlspecialchars($b['BranchName']) ?>
-            </option>
-          <?php endforeach; ?>
-          <?php if ($isAdmin): ?>
-            <option value="0" <?= $currentBranch ? '' : 'selected' ?>>(Tüm Şubeler)</option>
-          <?php endif; ?>
-        </select>
-      </form>
+        <form method="post" action="/restaurants/select_branch.php" class="d-flex align-items-center m-0">
+          <label class="me-2 small text-muted">Şube</label>
+          <select name="branch_id" class="form-select form-select-sm" style="min-width:180px" onchange="this.form.submit()">
+            <?php foreach ($branches_header as $b): ?>
+              <option value="<?= $b['BranchID'] ?>" <?= ($b['BranchID']==$currentBranch)?'selected':'' ?>>
+                <?= htmlspecialchars($b['BranchName']) ?>
+              </option>
+            <?php endforeach; ?>
+            <?php if ($isAdmin): ?>
+              <option value="0" <?= $currentBranch ? '' : 'selected' ?>>(Tüm Şubeler)</option>
+            <?php endif; ?>
+          </select>
+        </form>
       <?php endif; ?>
     </div>
 
