@@ -1,5 +1,4 @@
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
+
 --
 -- Table structure for table `Languages`
 --
@@ -264,6 +263,7 @@ CREATE TABLE `Restaurants` (
   `DefaultLanguage` varchar(5) DEFAULT 'tr',
   `MapUrl` varchar(255) DEFAULT NULL,
   `ThemeMode` varchar(10) DEFAULT 'auto',
+  `OrderUse` TINYINT(1) DEFAULT 0,
   PRIMARY KEY (`RestaurantID`),
   UNIQUE KEY `Email` (`Email`)
 ) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8;
@@ -300,3 +300,225 @@ CREATE TABLE `SubCategoryTranslations` (
   CONSTRAINT `fk_sct_lang` FOREIGN KEY (`LangCode`) REFERENCES `Languages` (`LangCode`),
   CONSTRAINT `fk_sct_sub` FOREIGN KEY (`SubCategoryID`) REFERENCES `SubCategories` (`SubCategoryID`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+
+
+
+
+CREATE TABLE `RestaurantRoles` (
+  `RoleID` INT AUTO_INCREMENT PRIMARY KEY,
+  `RestaurantID` INT NOT NULL,
+  `RoleName` VARCHAR(50) NOT NULL,
+  `CanManageMenu` TINYINT(1) DEFAULT 0,
+  `CanManageOrders` TINYINT(1) DEFAULT 0,
+  `CanManageTables` TINYINT(1) DEFAULT 0,
+  `CanManageUsers` TINYINT(1) DEFAULT 0,
+  `IsAdmin` TINYINT(1) DEFAULT 0,
+  FOREIGN KEY (`RestaurantID`) REFERENCES `Restaurants`(`RestaurantID`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+
+CREATE TABLE `RestaurantUsers` (
+  `UserID` INT AUTO_INCREMENT PRIMARY KEY,
+  `RestaurantID` INT NOT NULL,
+  `FullName` VARCHAR(100) NOT NULL,
+  `Email` VARCHAR(255) NOT NULL,
+  `PasswordHash` VARCHAR(255) NOT NULL,
+  `RoleID` INT NOT NULL,
+  `IsActive` TINYINT(1) DEFAULT 1,
+  `CreatedAt` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `UpdatedAt` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY `uniq_rest_email` (`RestaurantID`, `Email`),
+  FOREIGN KEY (`RestaurantID`) REFERENCES `Restaurants`(`RestaurantID`) ON DELETE CASCADE,
+  FOREIGN KEY (`RoleID`) REFERENCES `RestaurantRoles`(`RoleID`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+
+
+//****************************************************************************************//
+ALTER TABLE Restaurants
+  CONVERT TO CHARACTER SET utf8
+  COLLATE utf8_unicode_ci;
+
+ALTER TABLE RestaurantUsers
+  CONVERT TO CHARACTER SET utf8
+  COLLATE utf8_unicode_ci;
+  
+START TRANSACTION;
+
+-- 1) ŞUBELER
+CREATE TABLE IF NOT EXISTS `RestaurantBranches` (
+  `BranchID` INT AUTO_INCREMENT PRIMARY KEY,
+  `RestaurantID` INT NOT NULL,
+  `BranchName` VARCHAR(255) NOT NULL,
+  `Address` VARCHAR(500) DEFAULT NULL,
+  `Phone` VARCHAR(50) DEFAULT NULL,
+  `MapUrl` VARCHAR(255) DEFAULT NULL,
+  `IsActive` TINYINT(1) DEFAULT 1,
+  `CreatedAt` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `UpdatedAt` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT `rb_rest_fk` FOREIGN KEY (`RestaurantID`)
+    REFERENCES `Restaurants`(`RestaurantID`) ON DELETE CASCADE,
+  UNIQUE KEY `uniq_rest_branchname` (`RestaurantID`,`BranchName`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+
+-- 2) ROLLER (Restaurant bazlı; global defaultlar için RestaurantID NULL)
+CREATE TABLE IF NOT EXISTS `RestaurantRoles` (
+  `RoleID` INT AUTO_INCREMENT PRIMARY KEY,
+  `RestaurantID` INT NULL,
+  `RoleName` VARCHAR(50) NOT NULL,
+  `Permissions` JSON DEFAULT NULL,
+  `IsSystem` TINYINT(1) DEFAULT 0, -- global defaultlar için 1 kullanılabilir
+  CONSTRAINT `rr_rest_fk` FOREIGN KEY (`RestaurantID`)
+    REFERENCES `Restaurants`(`RestaurantID`) ON DELETE CASCADE,
+  UNIQUE KEY `uniq_rest_rolename` (`RestaurantID`,`RoleName`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+
+-- Global (RestaurantID=NULL) varsayılan roller (idempotent ekleme)
+INSERT INTO `RestaurantRoles` (`RestaurantID`,`RoleName`,`Permissions`,`IsSystem`)
+SELECT * FROM (
+  SELECT NULL, 'Admin',   JSON_OBJECT('menu', true, 'orders', true, 'tables', true, 'users', true, 'branches', true), 1 UNION ALL
+  SELECT NULL, 'Garson',  JSON_OBJECT('menu', false,'orders', true, 'tables', true, 'users', false,'branches', false), 1 UNION ALL
+  SELECT NULL, 'Mutfak',  JSON_OBJECT('menu', false,'orders', true, 'tables', false,'users', false,'branches', false), 1 UNION ALL
+  SELECT NULL, 'Kasiyer', JSON_OBJECT('menu', false,'orders', true, 'tables', false,'users', false,'branches', false), 1
+) AS t
+WHERE NOT EXISTS (SELECT 1 FROM RestaurantRoles r WHERE r.RestaurantID IS NULL);
+
+-- 3) KULLANICILAR (artık restoran içinde çok kullanıcı)
+CREATE TABLE IF NOT EXISTS `RestaurantUsers` (
+  `UserID` INT AUTO_INCREMENT PRIMARY KEY,
+  `RestaurantID` INT NOT NULL,
+  `FullName` VARCHAR(100) NOT NULL,
+  `Email` VARCHAR(255) NOT NULL,
+  `PasswordHash` VARCHAR(255) NOT NULL,
+  `IsActive` TINYINT(1) DEFAULT 1,
+  `CreatedAt` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `UpdatedAt` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT `ru_rest_fk` FOREIGN KEY (`RestaurantID`)
+    REFERENCES `Restaurants`(`RestaurantID`) ON DELETE CASCADE,
+  UNIQUE KEY `uniq_rest_email` (`RestaurantID`,`Email`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+
+-- 4) KULLANICI–ROL (çoklu rol ataması)
+CREATE TABLE IF NOT EXISTS `RestaurantUserRoles` (
+  `UserID` INT NOT NULL,
+  `RoleID` INT NOT NULL,
+  PRIMARY KEY (`UserID`,`RoleID`),
+  CONSTRAINT `rur_user_fk` FOREIGN KEY (`UserID`)
+    REFERENCES `RestaurantUsers`(`UserID`) ON DELETE CASCADE,
+  CONSTRAINT `rur_role_fk` FOREIGN KEY (`RoleID`)
+    REFERENCES `RestaurantRoles`(`RoleID`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+
+-- 5) KULLANICI–ŞUBE (hangi şubelerde yetkili?)
+CREATE TABLE IF NOT EXISTS `RestaurantBranchUsers` (
+  `UserID` INT NOT NULL,
+  `BranchID` INT NOT NULL,
+  PRIMARY KEY (`UserID`,`BranchID`),
+  CONSTRAINT `rbu_user_fk` FOREIGN KEY (`UserID`)
+    REFERENCES `RestaurantUsers`(`UserID`) ON DELETE CASCADE,
+  CONSTRAINT `rbu_branch_fk` FOREIGN KEY (`BranchID`)
+    REFERENCES `RestaurantBranches`(`BranchID`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+
+-- 6) OPERASYONEL TABLOLARA BranchID EKLE (mevcut veriyi korur)
+ALTER TABLE `MenuCategories`     ADD COLUMN `BranchID` INT NULL AFTER `RestaurantID`;
+ALTER TABLE `SubCategories`      ADD COLUMN `BranchID` INT NULL AFTER `RestaurantID`;
+ALTER TABLE `MenuItems`          ADD COLUMN `BranchID` INT NULL AFTER `RestaurantID`;
+ALTER TABLE `Orders`             ADD COLUMN `BranchID` INT NULL AFTER `RestaurantID`;
+ALTER TABLE `RestaurantTables`   ADD COLUMN `BranchID` INT NULL AFTER `RestaurantID`;
+
+ALTER TABLE `MenuCategories`     ADD CONSTRAINT `mc_branch_fk` FOREIGN KEY (`BranchID`) REFERENCES `RestaurantBranches`(`BranchID`) ON DELETE SET NULL;
+ALTER TABLE `SubCategories`      ADD CONSTRAINT `sc_branch_fk` FOREIGN KEY (`BranchID`) REFERENCES `RestaurantBranches`(`BranchID`) ON DELETE SET NULL;
+ALTER TABLE `MenuItems`          ADD CONSTRAINT `mi_branch_fk` FOREIGN KEY (`BranchID`) REFERENCES `RestaurantBranches`(`BranchID`) ON DELETE SET NULL;
+ALTER TABLE `Orders`             ADD CONSTRAINT `o_branch_fk`  FOREIGN KEY (`BranchID`) REFERENCES `RestaurantBranches`(`BranchID`) ON DELETE SET NULL;
+ALTER TABLE `RestaurantTables`   ADD CONSTRAINT `rt_branch_fk` FOREIGN KEY (`BranchID`) REFERENCES `RestaurantBranches`(`BranchID`) ON DELETE SET NULL;
+
+-- 7) PERFORMANS İNDEKSLERİ (sık sorgu kombinasyonları)
+CREATE INDEX `ix_mc_rest_branch` ON `MenuCategories` (`RestaurantID`,`BranchID`);
+CREATE INDEX `ix_sc_rest_branch` ON `SubCategories`  (`RestaurantID`,`BranchID`);
+CREATE INDEX `ix_mi_rest_branch` ON `MenuItems`      (`RestaurantID`,`BranchID`);
+CREATE INDEX `ix_o_rest_branch`  ON `Orders`         (`RestaurantID`,`BranchID`);
+CREATE INDEX `ix_rt_rest_branch` ON `RestaurantTables`(`RestaurantID`,`BranchID`);
+
+COMMIT;
+
+
+//***********************************************************************************************//
+
+
+START TRANSACTION;
+
+-- A) Her restoran için varsayılan bir şube oluştur (adı: 'Merkez Şube')
+INSERT INTO RestaurantBranches (RestaurantID, BranchName, Address, IsActive)
+SELECT r.RestaurantID, 'Merkez Şube', r.Address, 1
+FROM Restaurants r
+WHERE NOT EXISTS (
+  SELECT 1 FROM RestaurantBranches b WHERE b.RestaurantID = r.RestaurantID
+);
+
+-- B) Her restoran için global default rollerden kopya oluştur (Admin, Garson, Mutfak, Kasiyer)
+INSERT INTO RestaurantRoles (RestaurantID, RoleName, Permissions, IsSystem)
+SELECT r.RestaurantID, g.RoleName, g.Permissions, 0
+FROM Restaurants r
+JOIN RestaurantRoles g ON g.RestaurantID IS NULL
+WHERE NOT EXISTS (
+  SELECT 1 FROM RestaurantRoles rr WHERE rr.RestaurantID = r.RestaurantID
+);
+
+-- C) Eski tek-hesap kullanıcıyı yeni sisteme taşı (Restaurants tablosundaki Email/PasswordHash)
+--    FullName olarak restoran adını kullanıyoruz.
+INSERT INTO RestaurantUsers (RestaurantID, FullName, Email, PasswordHash, IsActive)
+SELECT r.RestaurantID, COALESCE(NULLIF(r.Name,''), CONCAT('Restoran #', r.RestaurantID)),
+       r.Email, r.PasswordHash, 1
+FROM Restaurants r
+WHERE r.Email IS NOT NULL AND r.Email <> ''
+  AND NOT EXISTS (
+    SELECT 1 FROM RestaurantUsers u WHERE u.RestaurantID = r.RestaurantID AND u.Email = r.Email
+  );
+
+-- D) Bu kullanıcıyı 'Admin' rolüne ata (restoranın kopyalanmış Admin rolü)
+INSERT INTO RestaurantUserRoles (UserID, RoleID)
+SELECT u.UserID, rr.RoleID
+FROM RestaurantUsers u
+JOIN RestaurantRoles rr
+  ON rr.RestaurantID = u.RestaurantID AND rr.RoleName = 'Admin'
+WHERE NOT EXISTS (
+  SELECT 1 FROM RestaurantUserRoles x WHERE x.UserID = u.UserID AND x.RoleID = rr.RoleID
+);
+
+-- E) Kullanıcıya "Merkez Şube" yetkisi ver
+INSERT INTO RestaurantBranchUsers (UserID, BranchID)
+SELECT u.UserID, b.BranchID
+FROM RestaurantUsers u
+JOIN RestaurantBranches b ON b.RestaurantID = u.RestaurantID AND b.BranchName = 'Merkez Şube'
+WHERE NOT EXISTS (
+  SELECT 1 FROM RestaurantBranchUsers x WHERE x.UserID = u.UserID AND x.BranchID = b.BranchID
+);
+
+-- F) Operasyonel verileri varsayılan şubeye bağla
+--    NOT: Bir restoranda birden fazla Branch varsa (manuel eklediysen), burada "Merkez Şube" tercih edilecek.
+UPDATE MenuCategories mc
+JOIN RestaurantBranches b ON b.RestaurantID = mc.RestaurantID AND b.BranchName = 'Merkez Şube'
+SET mc.BranchID = COALESCE(mc.BranchID, b.BranchID)
+WHERE mc.BranchID IS NULL;
+
+UPDATE SubCategories sc
+JOIN RestaurantBranches b ON b.RestaurantID = sc.RestaurantID AND b.BranchName = 'Merkez Şube'
+SET sc.BranchID = COALESCE(sc.BranchID, b.BranchID)
+WHERE sc.BranchID IS NULL;
+
+UPDATE MenuItems mi
+JOIN RestaurantBranches b ON b.RestaurantID = mi.RestaurantID AND b.BranchName = 'Merkez Şube'
+SET mi.BranchID = COALESCE(mi.BranchID, b.BranchID)
+WHERE mi.BranchID IS NULL;
+
+UPDATE RestaurantTables rt
+JOIN RestaurantBranches b ON b.RestaurantID = rt.RestaurantID AND b.BranchName = 'Merkez Şube'
+SET rt.BranchID = COALESCE(rt.BranchID, b.BranchID)
+WHERE rt.BranchID IS NULL;
+
+UPDATE Orders o
+JOIN RestaurantBranches b ON b.RestaurantID = o.RestaurantID AND b.BranchName = 'Merkez Şube'
+SET o.BranchID = COALESCE(o.BranchID, b.BranchID)
+WHERE o.BranchID IS NULL;
+
+COMMIT;
+//***************************************************//

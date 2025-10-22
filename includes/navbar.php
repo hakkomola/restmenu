@@ -1,3 +1,12 @@
+<?php
+if (session_status() === PHP_SESSION_NONE) session_start();
+require_once __DIR__ . '/../includes/auth.php';
+require_login();
+
+$currentBranch = $_SESSION['current_branch'] ?? null;
+$branches = $_SESSION['branches'] ?? [];
+$isAdmin = !empty($_SESSION['is_admin']);
+?>
 <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm sticky-top">
   <div class="container-fluid px-3 px-md-4">
     <a class="navbar-brand fw-semibold text-primary" href="../restaurants/dashboard.php">
@@ -19,11 +28,28 @@
         <li class="nav-item"><a class="nav-link" href="../restaurants/change_password.php"><i class="bi bi-lock me-1"></i>Şifre Değiştir</a></li>
       </ul>
 
-      <div class="d-flex align-items-center">
-        <span class="navbar-text me-3 text-dark small">
+      <div class="d-flex align-items-center gap-2">
+        <?php if (count($branches) > 1 || $isAdmin): ?>
+          <form method="post" action="../restaurants/select_branch.php" class="m-0">
+            <select name="branch_id" class="form-select form-select-sm" onchange="this.form.submit()" style="width:auto;min-width:160px;">
+              <?php foreach ($branches as $b): ?>
+                <option value="<?= $b['BranchID'] ?>"
+                  <?= ($b['BranchID'] == $currentBranch) ? 'selected' : '' ?>>
+                  <?= htmlspecialchars($b['BranchName']) ?>
+                </option>
+              <?php endforeach; ?>
+              <?php if ($isAdmin): ?>
+                <option value="0" <?= $currentBranch ? '' : 'selected' ?>>(Tüm Şubeler)</option>
+              <?php endif; ?>
+            </select>
+          </form>
+        <?php endif; ?>
+
+        <span class="navbar-text text-dark small">
           <i class="bi bi-person-circle me-1"></i>
-          <?= htmlspecialchars($_SESSION['restaurant_name'] ?? 'Restoran') ?>
+          <?= htmlspecialchars($_SESSION['role_name'] ?? 'Kullanıcı') ?>
         </span>
+
         <a href="../restaurants/logout.php" class="btn btn-outline-danger btn-sm">
           <i class="bi bi-box-arrow-right me-1"></i> Çıkış
         </a>
