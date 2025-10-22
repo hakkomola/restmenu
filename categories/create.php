@@ -35,7 +35,11 @@ if (!$defaultLang && $languages) $defaultLang = $languages[0]['LangCode'];
 
 // 🔹 Form gönderimi
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error) {
-    $branchId = $_POST['BranchID'] !== '' ? (int)$_POST['BranchID'] : null;
+$branchId = isset($_POST['BranchID']) ? (int)$_POST['BranchID'] : 0;
+if ($branchId <= 0) {
+    $error = 'Lütfen bir şube seçiniz.';
+}
+
     $trans = $_POST['trans'] ?? [];
     $imagePath = null;
 
@@ -112,7 +116,7 @@ include __DIR__ . '/../includes/bo_header.php';
     <div class="mb-3">
       <label class="form-label">Şube</label>
       <select name="BranchID" class="form-select">
-        <option value="">Tüm Şubeler</option>
+        <option value="">Şube Seçiniz</option>
         <?php foreach ($branches as $b): ?>
           <option value="<?= $b['BranchID'] ?>"><?= htmlspecialchars($b['BranchName']) ?></option>
         <?php endforeach; ?>

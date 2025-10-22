@@ -50,7 +50,7 @@ include __DIR__ . '/../includes/bo_header.php';
 <div class="d-flex justify-content-between align-items-center mb-4">
   <h4 class="fw-semibold mb-0"><?= htmlspecialchars($pageTitle) ?></h4>
   <a href="create.php" class="btn btn-primary btn-sm">
-    <i class="bi bi-plus-circle"></i> Yeni Kullanıcı
+    <i class="bi bi-plus-circle"></i> Yeni
   </a>
 </div>
 

@@ -50,12 +50,15 @@ foreach ($trs->fetchAll(PDO::FETCH_ASSOC) as $row) {
 $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $branchId = $_POST['BranchID'] !== '' ? (int)$_POST['BranchID'] : null;
+    $branchId = isset($_POST['BranchID']) ? (int)$_POST['BranchID'] : 0;
     $trans = $_POST['trans'] ?? [];
     $defaultName = trim($trans[$defaultLang]['name'] ?? '');
-    $deleteImage = isset($_POST['delete_image']); // 🔸 X ile silme kontrolü
+    $deleteImage = isset($_POST['delete_image']);
 
-    if ($defaultName === '') {
+    // 🔸 Zorunlu kontroller
+    if ($branchId <= 0) {
+        $error = 'Lütfen bir şube seçiniz.';
+    } elseif ($defaultName === '') {
         $error = strtoupper($defaultLang) . ' dilinde kategori adı zorunludur.';
     }
 
@@ -110,7 +113,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $upd->execute([$branchId, $defaultName, $id, $restaurantId]);
                 }
 
-                // 🔹 Çeviriler (upsert)
+                // 🔹 Çeviriler
                 $ins = $pdo->prepare("
                     INSERT INTO MenuCategoryTranslations (CategoryID, LangCode, Name)
                     VALUES (:cid, :lang, :name)
@@ -155,11 +158,10 @@ include __DIR__ . '/../includes/bo_header.php';
 
   <form method="post" enctype="multipart/form-data" class="bo-form card p-4 shadow-sm">
 
-    <!-- Şube seçimi -->
+    <!-- 🔹 Şube seçimi -->
     <div class="mb-3">
-      <label class="form-label">Şube</label>
-      <select name="BranchID" class="form-select">
-        <option value="">Tüm Şubeler</option>
+      <label class="form-label">Şube <span class="text-danger">*</span></label>
+      <select name="BranchID" class="form-select" required>
         <?php foreach ($branches as $b): ?>
           <option value="<?= $b['BranchID'] ?>" <?= $category['BranchID'] == $b['BranchID'] ? 'selected' : '' ?>>
             <?= htmlspecialchars($b['BranchName']) ?>
@@ -168,7 +170,7 @@ include __DIR__ . '/../includes/bo_header.php';
       </select>
     </div>
 
-    <!-- Dil sekmeleri -->
+    <!-- 🔹 Dil sekmeleri -->
     <ul class="nav nav-tabs mb-3" role="tablist">
       <?php foreach ($languages as $L): ?>
         <li class="nav-item" role="presentation">
@@ -196,7 +198,7 @@ include __DIR__ . '/../includes/bo_header.php';
       <?php endforeach; ?>
     </div>
 
-    <!-- Resim yükleme / silme -->
+    <!-- 🔹 Resim yükleme / silme -->
     <div class="mb-3 mt-2">
       <label class="form-label">Kategori Görseli</label>
       <input type="file" name="image" id="imageInput" class="form-control" accept="image/*">
@@ -234,7 +236,7 @@ document.addEventListener('DOMContentLoaded', function () {
       reader.onload = function (e) {
         previewImg.src = e.target.result;
         previewDiv.classList.remove('d-none');
-        deleteFlag.value = ''; // yeni resim seçilince silme bayrağını temizle
+        deleteFlag.value = '';
       };
       reader.readAsDataURL(file);
     }
@@ -244,7 +246,7 @@ document.addEventListener('DOMContentLoaded', function () {
     input.value = '';
     previewDiv.classList.add('d-none');
     previewImg.src = '#';
-    deleteFlag.value = '1'; // 🔹 form gönderildiğinde resmi sil
+    deleteFlag.value = '1';
   });
 });
 </script>

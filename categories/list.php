@@ -52,7 +52,7 @@ include __DIR__ . '/../includes/bo_header.php';
   </div>
 
   <a href="create.php<?= $selectedBranchId !== 'all' ? '?branch_id=' . $selectedBranchId : '' ?>" class="btn btn-primary btn-sm">
-    <i class="bi bi-plus-circle"></i> Yeni Kategori
+    <i class="bi bi-plus-circle"></i> Yeni
   </a>
 </div>
 
