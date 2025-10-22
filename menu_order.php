@@ -26,42 +26,37 @@ if (!defined('RESTMENU_HASH_PEPPER')) {
    HASH → RESTORAN & MASA ÇÖZ
 ===================== */
 function resolve_table(PDO $pdo, string $hash) {
-    $rows = $pdo->query("SELECT RestaurantID, Code, Name, IsActive FROM RestaurantTables")->fetchAll(PDO::FETCH_ASSOC);
+    $rows = $pdo->query("SELECT RestaurantID, BranchID, Code, Name, IsActive FROM RestaurantTables")->fetchAll(PDO::FETCH_ASSOC);
     foreach ($rows as $r) {
-        $calc = substr(hash('sha256', $r['RestaurantID'].'|'.$r['Code'].'|'.RESTMENU_HASH_PEPPER), 0, 24);
-        if ($calc === $hash) return $r;
+        $branchId = (int)($r['BranchID'] ?? 0);
+        $calc = substr(hash('sha256', $r['RestaurantID'].'|'.$branchId.'|'.$r['Code'].'|'.RESTMENU_HASH_PEPPER), 0, 32);
+        if (hash_equals($calc, $hash)) {
+            return $r;
+        }
     }
     return null;
 }
+
 $table = resolve_table($pdo, $hash);
 if (!$table || !$table['IsActive']) die('Masa bulunamadı veya pasif.');
 
-
+/* =====================
+   RESTORAN & ŞUBE BİLGİLERİ
+===================== */
 $restaurantId = (int)$table['RestaurantID'];
+$branchId     = (int)($table['BranchID'] ?? 0);
 $tableName    = $table['Name'];
 
-
-
-/* ====== Restoran bilgisi ====== */
-$stmt = $pdo->prepare("SELECT RestaurantID, Name, OrderUse FROM Restaurants WHERE RestaurantID = ? ");
-$stmt->execute([$table['RestaurantID']]);
+// Restoran bilgisi
+$stmt = $pdo->prepare("SELECT RestaurantID, Name, OrderUse FROM Restaurants WHERE RestaurantID = ?");
+$stmt->execute([$restaurantId]);
 $restaurant = $stmt->fetch(PDO::FETCH_ASSOC);
+if (!$restaurant) die('Restoran bulunamadı.');
 
-if (!$restaurant) {
-    die('Restoran bulunamadı.');
-}
-
-/* ====== OrderUse kontrolü ====== */
+// OrderUse kontrolü
 if (strtoupper($restaurant['OrderUse']) === 'N') {
     die('Restoranın sipariş yetkisi yok.');
 }
-
-
-
-// Masa çözümünden sonra restoran bilgilerini çek
-$stmt = $pdo->prepare("SELECT Name FROM Restaurants WHERE RestaurantID = ?");
-$stmt->execute([$restaurantId]);
-$restaurant = $stmt->fetch(PDO::FETCH_ASSOC);
 
 $restaurantName = $restaurant['Name'] ?? 'Restoran';
 
@@ -79,19 +74,21 @@ $tx = [
 /* =====================
    DİL DESTEĞİ
 ===================== */
-$supportedLangs = $pdo->query("
+$supportedLangs = $pdo->prepare("
     SELECT L.LangCode, L.LangName 
     FROM Languages L
     INNER JOIN RestaurantLanguages RL ON RL.LangCode=L.LangCode
-    WHERE RL.RestaurantID=$restaurantId AND L.IsActive=1
+    WHERE RL.RestaurantID=? AND L.IsActive=1
     ORDER BY RL.IsDefault DESC, L.SortOrder
-")->fetchAll(PDO::FETCH_ASSOC);
+");
+$supportedLangs->execute([$restaurantId]);
+$supportedLangs = $supportedLangs->fetchAll(PDO::FETCH_ASSOC);
 
 /* =====================
-   KATEGORİLER
+   KATEGORİLER & ÜRÜNLER
 ===================== */
 if (!$catId) {
-    // Ana sayfa: sadece kategoriler
+    // Ana sayfa: sadece kategoriler (şube filtreli)
     $stmt = $pdo->prepare("
         SELECT c.CategoryID, 
                COALESCE(t.Name, c.CategoryName) AS CategoryNameDisp,
@@ -100,23 +97,24 @@ if (!$catId) {
         LEFT JOIN MenuCategoryTranslations t 
           ON t.CategoryID=c.CategoryID AND t.LangCode=:lang
         WHERE c.RestaurantID=:rid
+          AND (c.BranchID=:bid)
         ORDER BY c.SortOrder, c.CategoryID
     ");
-    $stmt->execute([':lang' => $lang, ':rid' => $restaurantId]);
+    $stmt->execute([':lang' => $lang, ':rid' => $restaurantId, ':bid' => $branchId]);
     $categories = $stmt->fetchAll(PDO::FETCH_ASSOC);
     $category = null;
     $subcategories = [];
     $itemsBySub = [];
 } else {
-    // Seçili kategori
+    // Seçili kategori (şube filtreli)
     $catStmt = $pdo->prepare("
         SELECT c.CategoryID, COALESCE(t.Name, c.CategoryName) AS CategoryNameDisp
         FROM MenuCategories c
         LEFT JOIN MenuCategoryTranslations t 
           ON t.CategoryID=c.CategoryID AND t.LangCode=:lang
-        WHERE c.CategoryID=:cid
+        WHERE c.CategoryID=:cid AND (c.BranchID=:bid)
     ");
-    $catStmt->execute([':lang'=>$lang, ':cid'=>$catId]);
+    $catStmt->execute([':lang'=>$lang, ':cid'=>$catId, ':bid'=>$branchId]);
     $category = $catStmt->fetch(PDO::FETCH_ASSOC);
 
     /* ==== Alt Kategoriler ==== */
@@ -125,13 +123,16 @@ if (!$catId) {
         FROM SubCategories s
         LEFT JOIN SubCategoryTranslations t 
           ON t.SubCategoryID=s.SubCategoryID AND t.LangCode=:lang
-        WHERE s.RestaurantID=:rid AND s.CategoryID=:cid
+        WHERE s.RestaurantID=:rid 
+          AND s.CategoryID=:cid
+          AND (s.BranchID=:bid)
         ORDER BY s.SortOrder, s.SubCategoryID
     ");
-    $subStmt->execute([':lang'=>$lang, ':rid'=>$restaurantId, ':cid'=>$catId]);
+    $subStmt->execute([':lang'=>$lang, ':rid'=>$restaurantId, ':cid'=>$catId, ':bid'=>$branchId]);
     $subcategories = $subStmt->fetchAll(PDO::FETCH_ASSOC);
 
     /* ==== Ürünler ==== */
+    // DİKKAT: Aynı named placeholder iki kez kullanılamaz → :bid_sub ve :bid_item
     $itemStmt = $pdo->prepare("
         SELECT i.MenuItemID, i.SubCategoryID,
                COALESCE(mt.Name, i.MenuName) AS MenuNameDisp,
@@ -139,11 +140,21 @@ if (!$catId) {
         FROM MenuItems i
         LEFT JOIN MenuItemTranslations mt 
           ON mt.MenuItemID=i.MenuItemID AND mt.LangCode=:lang
-        WHERE i.RestaurantID=:rid AND i.SubCategoryID IN 
-            (SELECT SubCategoryID FROM SubCategories WHERE CategoryID=:cid)
+        WHERE i.RestaurantID=:rid 
+          AND i.SubCategoryID IN (
+              SELECT SubCategoryID FROM SubCategories 
+              WHERE CategoryID=:cid AND (BranchID=:bid_sub)
+          )
+          AND (i.BranchID=:bid_item)
         ORDER BY i.SortOrder, i.MenuItemID
     ");
-    $itemStmt->execute([':lang'=>$lang, ':rid'=>$restaurantId, ':cid'=>$catId]);
+    $itemStmt->execute([
+        ':lang'=>$lang,
+        ':rid'=>$restaurantId,
+        ':cid'=>$catId,
+        ':bid_sub'=>$branchId,
+        ':bid_item'=>$branchId
+    ]);
     $allItems = $itemStmt->fetchAll(PDO::FETCH_ASSOC);
 
     /* ==== Ürün Opsiyonları ve Görselleri ==== */
@@ -156,7 +167,12 @@ if (!$catId) {
         WHERE o.MenuItemID=:iid
         ORDER BY o.SortOrder, o.OptionID
     ");
-    $imgStmt = $pdo->prepare("SELECT ImageURL FROM MenuImages WHERE MenuItemID=:iid ORDER BY MenuImageID");
+    $imgStmt = $pdo->prepare("
+        SELECT ImageURL 
+        FROM MenuImages 
+        WHERE MenuItemID=:iid 
+        ORDER BY MenuImageID
+    ");
 
     $itemsBySub = [];
     foreach ($allItems as &$item) {
@@ -200,6 +216,7 @@ if (!empty($_SESSION['cart'][$hash])) {
     }
 }
 ?>
+
 <!DOCTYPE html>
 <html lang="<?= htmlspecialchars($lang) ?>">
 <head>
@@ -278,11 +295,12 @@ if (!empty($_SESSION['cart'][$hash])) {
               $quickOptionId = $defaultOptionID ?: ($singleOptionID ?: null);
               $displayPrice = $defaultPrice ?? $singlePrice;
 
-$detailUrl = 'menu_order_item.php?id='.(int)$item['MenuItemID']
+              $detailUrl = 'menu_order_item.php?id='.(int)$item['MenuItemID']
     .'&hash='.urlencode($hash)
     .'&theme='.urlencode($theme)
     .'&lang='.urlencode($lang)
-    .'&from='.$_SERVER['REQUEST_URI'];
+    .'&from='.urlencode($_SERVER['REQUEST_URI']);
+
             ?>
 
             

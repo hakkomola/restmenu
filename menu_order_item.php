@@ -1,9 +1,11 @@
 <?php
 // menu_order_item.php
-session_start();
-require_once __DIR__ . '/db.php';
+
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
+session_start();
+require_once __DIR__ . '/db.php';
+
 
 /* =====================
    GİRİŞ PARAMETRELERİ
@@ -31,17 +33,12 @@ if (!defined('RESTMENU_HASH_PEPPER')) {
     define('RESTMENU_HASH_PEPPER', 'CHANGE_ME_TO_A_LONG_RANDOM_SECRET_STRING');
 }
 function resolve_table(PDO $pdo, string $hash) {
-    $rows = $pdo->query("SELECT RestaurantID, Code, Name, IsActive FROM RestaurantTables")->fetchAll(PDO::FETCH_ASSOC);
+    $rows = $pdo->query("SELECT RestaurantID, BranchID, Code, Name, IsActive FROM RestaurantTables")->fetchAll(PDO::FETCH_ASSOC);
     foreach ($rows as $r) {
-        $variants = [
-            substr(hash('sha256', $r['RestaurantID'].'|'.$r['Code'].'|'.RESTMENU_HASH_PEPPER), 0, 24),
-            md5($r['RestaurantID'].'-'.$r['Code']),
-            md5($r['RestaurantID'].$r['Code']),
-            md5($r['Code']),
-            $r['Code']
-        ];
-        foreach ($variants as $cand) {
-            if (hash_equals($cand, $hash)) return $r;
+        $branchId = (int)($r['BranchID'] ?? 0);
+        $calc = substr(hash('sha256', $r['RestaurantID'].'|'.$branchId.'|'.$r['Code'].'|'.RESTMENU_HASH_PEPPER), 0, 32);
+        if (hash_equals($calc, $hash)) {
+            return $r;
         }
     }
     return null;
@@ -52,11 +49,14 @@ if (!$table || !$table['IsActive']) die('Masa bulunamadı veya pasif.');
 /* =====================
    Restoran bilgisi
 ===================== */
+$restaurantId = (int)$table['RestaurantID'];
+$branchId     = (int)$table['BranchID'];
+$tableName    = $table['Name'];
+
 $stmt = $pdo->prepare("SELECT RestaurantID, Name, DefaultLanguage FROM Restaurants WHERE RestaurantID=?");
-$stmt->execute([$table['RestaurantID']]);
+$stmt->execute([$restaurantId]);
 $restaurant = $stmt->fetch(PDO::FETCH_ASSOC);
 if (!$restaurant) die('Restoran bulunamadı.');
-$restaurantId = (int)$restaurant['RestaurantID'];
 $restaurantName = $restaurant['Name'];
 if (!$lang) $lang = $restaurant['DefaultLanguage'] ?: 'tr';
 
@@ -88,7 +88,7 @@ $tx = [
 $T = $tx[strtolower($lang)] ?? $tx['tr'];
 
 /* =====================
-   Ürün + Opsiyonlar
+   Ürün + Opsiyonlar (şube filtreli)
 ===================== */
 $stmt = $pdo->prepare("
     SELECT m.MenuItemID,m.MenuName,m.Description,m.SubCategoryID,
@@ -96,18 +96,18 @@ $stmt = $pdo->prepare("
            COALESCE(mt.Description,m.Description) AS DescriptionDisp
     FROM MenuItems m
     LEFT JOIN MenuItemTranslations mt ON mt.MenuItemID=m.MenuItemID AND mt.LangCode=?
-    WHERE m.MenuItemID=? AND m.RestaurantID=?
+    WHERE m.MenuItemID=? AND m.RestaurantID=? AND m.BranchID=?
 ");
-$stmt->execute([$lang,$itemId,$restaurantId]);
+$stmt->execute([$lang,$itemId,$restaurantId,$branchId]);
 $item = $stmt->fetch(PDO::FETCH_ASSOC);
 if (!$item) die('Ürün bulunamadı');
 
-/* Görseller */
+/* Görseller (şube filtreli) */
 $imgStmt=$pdo->prepare("SELECT ImageURL FROM MenuImages WHERE MenuItemID=?");
 $imgStmt->execute([$itemId]);
 $images=$imgStmt->fetchAll(PDO::FETCH_COLUMN);
 
-/* Opsiyonlar */
+/* Opsiyonlar (şube filtreli) */
 $optStmt=$pdo->prepare("
     SELECT o.*, COALESCE(ot.Name,o.OptionName) AS OptionNameDisp
     FROM MenuItemOptions o
@@ -132,6 +132,7 @@ if (empty($backUrl) || strpos($backUrl, $_SERVER['HTTP_HOST']) === false) {
     $backUrl = "menu_order.php?hash=" . urlencode($hash) . "&theme=" . urlencode($theme) . "&lang=" . urlencode($lang);
 }
 ?>
+
 <!DOCTYPE html>
 <html lang="<?= htmlspecialchars($lang) ?>">
 <head>
@@ -156,17 +157,29 @@ if (empty($backUrl) || strpos($backUrl, $_SERVER['HTTP_HOST']) === false) {
   <!-- 🟢 Sağ üstte Menüye Dön -->
  <?php
 // Geri linki oluştur (cat parametresi dahil)
-$catPart = isset($_GET['cat']) ? '&cat='.(int)$_GET['cat'] : '';
-$backUrl = "menu_order.php?hash=" . urlencode($_GET['hash'] ?? '') .
-            "&theme=" . urlencode($_GET['theme'] ?? 'light') .
-            "&lang=" . urlencode($_GET['lang'] ?? 'tr') .
-            $catPart;
-?> <button type="button"
-          class="btn btn-outline-secondary btn-sm position-absolute"
-          style="top:8px; right:12px;"
-          onclick="window.location.href='<?= htmlspecialchars($backUrl) ?>'">
-    Menüye Dön
-  </button>
+$fromUrl = $_GET['from'] ?? ($_SESSION['last_page'][$hash] ?? '');
+if (!empty($fromUrl)) {
+    $fromUrl = urldecode($fromUrl);
+    // Güvenlik: sadece / ile başlayan (site içi) URL'lere izin ver
+    if (strpos($fromUrl, $_SERVER['HTTP_HOST']) === false && str_starts_with($fromUrl, '/')) {
+        $backUrl = $fromUrl;
+    } else {
+        $backUrl = "menu_order.php?hash=" . urlencode($hash)
+                 . "&theme=" . urlencode($theme)
+                 . "&lang=" . urlencode($lang);
+    }
+} else {
+    $backUrl = "menu_order.php?hash=" . urlencode($hash)
+             . "&theme=" . urlencode($theme)
+             . "&lang=" . urlencode($lang);
+}
+?>
+<button type="button"
+        class="btn btn-outline-secondary btn-sm position-absolute"
+        style="top:8px; right:12px;"
+        onclick="window.location.href='<?= htmlspecialchars($backUrl) ?>'">
+  Menüye Dön
+</button>
 
   <!-- Başlıklar -->
   <h1 class="mb-1 mt-2 mt-sm-3"><?= htmlspecialchars($restaurantName) ?></h1>
